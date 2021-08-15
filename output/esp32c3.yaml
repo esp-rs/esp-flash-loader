@@ -1,0 +1,44 @@
+---
+name: "<family name>"
+manufacturer: ~
+variants:
+  - name: "<chip name>"
+    part: ~
+    memory_map:
+      - Nvm:
+          range:
+            start: 0
+            end: 8192
+          is_boot_memory: false
+      - Ram:
+          range:
+            start: 65536
+            end: 131072
+          is_boot_memory: true
+    flash_algorithms:
+      - esp-flashloader
+flash_algorithms:
+  esp-flashloader:
+    name: esp-flashloader
+    description: ""
+    default: true
+    instructions: FwMAQGcAgxIXAwBAZwCDEUERBsaXAABA54CAcIFFlwAAQOeAYBSyQEEBFwMAQGcAYxETdzYAGcMFRYKAroayhTaGFwMAQGcAow4BRYKAAAA=
+    pc_init: 16
+    pc_uninit: 74
+    pc_program_page: 50
+    pc_erase_sector: 0
+    pc_erase_all: 8
+    data_section_offset: 80
+    flash_properties:
+      address_range:
+        start: 1006632960
+        end: 1023410176
+      page_size: 256
+      erased_byte_value: 255
+      program_page_timeout: 1000
+      erase_sector_timeout: 2000
+      sectors:
+        - size: 4096
+          address: 0
+core: M0
+
