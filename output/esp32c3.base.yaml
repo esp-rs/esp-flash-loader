@@ -27,13 +27,13 @@ flash_algorithms:
     name: esp-flashloader
     description: ""
     default: true
-    instructions: QREGxiLEKoSXAABA54CAEwnFIkSyQEEBgoATVcQAIkSyQEEBFwMAQGcAQxAXAwBAZwBDD0ERBsZzZQQwlwAAQOeAAG6BRZcAAEDngOARskBBARcDAEBnAOMOQREGxiLEJsJKwLKELokqhJcAAEDngGANCeWT9TQABUWZxQJJkkQiRLJAQQGCgCKFpoVKhgJJkkQiRLJAQQEXAwBAZwBDCQFFgoA=
+    instructions: QREGxiLEKoSXAABA54CAEwnFIkSyQEEBgoATVcQAIkSyQEEBFwMAQGcAQxAXAwBAZwBDD0ERBsaXAABA54BAboFFlwAAQOeAIBKyQEEBFwMAQGcAIw9BEQbGIsQmwkrAsoQuiSqElwAAQOeAoA0J5ZP1NAAFRZnFAkmSRCJEskBBAYKAIoWmhUqGAkmSRCJEskBBARcDAEBnAIMJAUWCgA==
     pc_init: 52
-    pc_uninit: 160
-    pc_program_page: 90
+    pc_uninit: 156
+    pc_program_page: 86
     pc_erase_sector: 0
     pc_erase_all: 44
-    data_section_offset: 164
+    data_section_offset: 160
     flash_properties:
       address_range:
         start: 1006632960
@@ -45,4 +45,3 @@ flash_algorithms:
       sectors:
         - size: 4096
           address: 0
-

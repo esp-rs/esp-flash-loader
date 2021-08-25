@@ -1,5 +1,8 @@
 #![no_std]
 #![no_main]
+
+#![feature(asm)]
+
 // Define necessary functions for flash loader
 //
 // These are taken from the [ARM CMSIS-Pack documentation]
@@ -7,6 +10,8 @@
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
 
 use panic_never as _;
+
+const FLASH_SECTOR_SIZE: u32 = 4096;
 
 #[allow(unused)]
 extern "C" {
@@ -53,12 +58,16 @@ extern "C" {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
-    let res = esp_rom_spiflash_erase_sector(adr);
+    let res = esp_rom_spiflash_unlock();
     if res != 0 {
         return res;
     }
 
-
+    let res = esp_rom_spiflash_erase_sector(adr / FLASH_SECTOR_SIZE);
+    if res != 0 {
+        return res;
+    }
+    
     0
 }
 
@@ -72,10 +81,10 @@ pub unsafe extern "C" fn EraseChip() -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
+    let mut _tmp: u32;
+    asm!("csrrsi {0}, mstatus, {1}", out(reg) _tmp, const 0x00000008);
+
     let spiconfig: u32 = ets_efuse_get_spiconfig();
-
-    // TODO enable cache? - can we avoid if we use direct boot?
-
     esp_rom_spiflash_attach(spiconfig, false);
 
     let res = esp_rom_spiflash_unlock();
@@ -89,6 +98,10 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
+    let res = esp_rom_spiflash_unlock();
+    if res != 0 {
+        return res;
+    }
     let buf_addr: u32 = buf as *const _ as _;
     if buf_addr % 4 != 0 { // TODO write into aligned buffer first, then pass to write if unaligned
         return 1;
