@@ -83,8 +83,12 @@ fn main() -> ! {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
+    // let mut _tmp: u32;
+    // unsafe { asm!("csrrsi {0}, mstatus, {1}", out(reg) _tmp, const 0x00000008) };
+    // disable_wdts();
+
     // Uart.write_str("INIT").ok();
-    0x3C00_0000 // random number works
+    0x50D83AA1
 }
 
 /// Erase the sector at the given address in flash
