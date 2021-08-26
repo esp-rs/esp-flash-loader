@@ -4,11 +4,7 @@ manufacturer: ~
 core: Riscv
 variants:
   - name: "esp32c3"
-    cores:
-      - name: main
-        type: riscv
-        core_access_options:
-          Riscv: {}
+    part: ~
     memory_map:
       - Nvm:
           range:
@@ -17,31 +13,8 @@ variants:
           is_boot_memory: false
       - Ram:
           range:
-            start: 0x4037C000
+            start: 0x40380000
             end: 0x403E0000
           is_boot_memory: true
     flash_algorithms:
       - esp-flashloader
-flash_algorithms:
-  esp-flashloader:
-    name: esp-flashloader
-    description: ""
-    default: true
-    instructions: QREGxiLEKoSXAABA54CAEwnFIkSyQEEBgoATVcQAIkSyQEEBFwMAQGcAQxAXAwBAZwBDD0ERBsaXAABA54BAboFFlwAAQOeAIBKyQEEBFwMAQGcAIw9BEQbGIsQmwkrAsoQuiSqElwAAQOeAoA0J5ZP1NAAFRZnFAkmSRCJEskBBAYKAIoWmhUqGAkmSRCJEskBBARcDAEBnAIMJAUWCgA==
-    pc_init: 52
-    pc_uninit: 156
-    pc_program_page: 86
-    pc_erase_sector: 0
-    pc_erase_all: 44
-    data_section_offset: 160
-    flash_properties:
-      address_range:
-        start: 1006632960
-        end: 1023410176
-      page_size: 256
-      erased_byte_value: 255
-      program_page_timeout: 1000
-      erase_sector_timeout: 2000
-      sectors:
-        - size: 4096
-          address: 0
