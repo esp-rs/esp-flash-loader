@@ -8,8 +8,8 @@ variants:
     memory_map:
       - Nvm:
           range:
-            start: 1006632960
-            end: 1023410176
+            start: 0x42000000
+            end: 0x427FFFFF
           is_boot_memory: false
       - Ram:
           range:

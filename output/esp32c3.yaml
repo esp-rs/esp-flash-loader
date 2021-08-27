@@ -8,8 +8,8 @@ variants:
     memory_map:
       - Nvm:
           range:
-            start: 1006632960
-            end: 1023410176
+            start: 0x42000000
+            end: 0x427FFFFF
           is_boot_memory: false
       - Ram:
           range:
@@ -23,17 +23,17 @@ flash_algorithms:
     name: esp-flashloader
     description: ""
     default: true
-    instructions: NwUAPIKAAUWCgAFFgoABRYKAAaA=
-    pc_init: 0
-    pc_uninit: 6
-    pc_program_page: 14
-    pc_erase_sector: 6
-    pc_erase_all: 10
-    data_section_offset: 20
+    instructions: QREGxiLEJsJKwBHOMoQ3BQBAEwmFBgPFBQCThBUAApl9FKaFbfgBRQJJkkQiRLJAQQGCgEERBsYixCbCNwQAQJMEhAYTBZAEgpQTBeAEgpQTBZAEgpQTBUAFgpQpRYKUEwXEcQKVEwZEFoFFApaTBwQUkkQiRLJAQQGCh3lxBtYi1CbSStBOzlLMqoQ3BABAEwUEFAKVGcERRe2gNwUAvjOJpAATBIQGEwVQBAKUEwUgBQKUEwUQBAKUEwUwBQKUEwVQBAKUEwUAAgKUEwUABAKUEwUAAgKUk1nJAJMF4QApRiaFlwAAAOeAwBiZza6EtwUAQBOJhQaDRQUAEwQVAC6FApn9FCKF5fg3CQBAEwqJBhMFAAICmhMF0AICmhMFAAICmhMFIAYCmhMFwAYCmhMF8AYCmhMFMAYCmhMFsAYCmhMFoAMCmhMFAAICmpMF4QApRk6FlwAAAOeAoBGZya6Eg0UFABMEFQAuhQKa/RQiheX4kwWJEk6FgpWqhQFFkcEVRWJK8kkCWZJUIlSyUEVhgoABRYKAQREGxiLEJsJKwLKELokqhDcFAEATBQUUApUd4ZP1NAAxRZntNwUAviKVtwUAQJOGxRKmhUqGgpaqhQFFkcEdRQJJkkQiRLJAQQGCgAFFgoABoIKAgoCBRYKAQREGxiLEJsJKwBHOMoQ3BQBAEwmFBgPFBQCThBUAApl9FKaFbfgBRQJJkkQiRLJAQQGCgAERBs4izCbKSsgIQZMFYQApRpcAAADngIADmc0uhLcFAEATiYUGg0UFAJMEFQAuhQKZfRQmhWX4AUVCSdJEYkTyQAVhgoCqlYKAEwj2/7fWzMyTgtbMszZVAo2CqUizhhYDswfVQLOGBQGT5wcDI4D2AGNgFQWTBub/EwhABqqHMzVVAg2BMzdVAg2DMwcXAzMH5UAzg9UAE2cHAyMA4wD9FuP+B/0TiBYAM4XVAJMGFQCzBQZBNoWCgA==
+    pc_init: 52
+    pc_uninit: 484
+    pc_program_page: 408
+    pc_erase_sector: 124
+    pc_erase_all: 404
+    data_section_offset: 736
     flash_properties:
       address_range:
-        start: 1006632960
-        end: 1023410176
+        start: 1107296256
+        end: 1124073472
       page_size: 256
       erased_byte_value: 255
       program_page_timeout: 1000

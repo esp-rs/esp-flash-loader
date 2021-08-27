@@ -22,23 +22,16 @@ SECTIONS {
 
         KEEP(*(.rodata))
         KEEP(*(.rodata.*))
-        
-        . = ALIGN(4);
-    }
 
-    /* Section for data, specified by flashloader standard. */
-    PrgData : {
         *(.data .data.*)
         *(.sdata .sdata.*)
 
-    }
-
-    PrgData : {
-        /* Zero-initialized data */
         *(.bss .bss.*)
         *(.sbss .sbss.*)
 
         *(COMMON)
+        
+        . = ALIGN(4);
     }
 
     /* Description of the flash algorithm */

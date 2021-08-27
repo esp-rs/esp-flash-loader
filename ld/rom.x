@@ -77,4 +77,4 @@ PROVIDE( Enable_QMode = 0x40000228 );
 PROVIDE( ets_efuse_get_spiconfig = 0x4000071c );
 
 
-uart_tx_one_char = 0x40000068;
+PROVIDE( uart_tx_one_char = 0x40000068 );
