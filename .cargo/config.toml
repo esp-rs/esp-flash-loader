@@ -3,24 +3,16 @@
 [target.riscv32imc-unknown-none-elf]
 ## For flash loader
 rustflags = [
+    "-C", "link-arg=-Tld/esp32c3.x",
     "-C", "link-arg=-Tld/loader.x",
-    "-C", "link-arg=-Tld/rom.x",
     "-C", "link-args=-Map=target/esp-loader.map",
     "-C", "link-args=--nmagic",
 
     # We don't know where the flash loader will be
     # placed in memory, so we need to create
     # position independent code (pic).
-    "-C", "relocation-model=pic",
+    # "-C", "relocation-model=pic", # no longer required after https://github.com/probe-rs/probe-rs/pull/822
 ]
-
-## For stand alone use
-# rustflags = [
-#     "-C", "link-arg=-Tld/esp32c3-standalone.x",
-#     "-C", "link-arg=-Tld/rom.x",
-#     "-C", "link-args=-Map=target/esp-loader.map",
-#     "-C", "link-args=--nmagic",
-# ]
 
 [build]
 target = "riscv32imc-unknown-none-elf"

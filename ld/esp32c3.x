@@ -1,5 +1,13 @@
 
 
+MEMORY {
+    IRAM : ORIGIN = 0x40380008, LENGTH = 400K - 0x4000
+
+    DRAM : ORIGIN = 0x3FC80000, LENGTH = 0x50000
+
+    INFO: ORIGIN = 0x0, LENGTH = 0x10000
+}
+
 PROVIDE( esp_rom_spiflash_wait_idle = 0x4000010c );
 PROVIDE( esp_rom_spiflash_write_encrypted = 0x40000110 );
 PROVIDE( esp_rom_spiflash_write_encrypted_dest = 0x40000114 );

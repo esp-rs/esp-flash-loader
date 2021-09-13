@@ -1,4 +1,6 @@
-/* Shared loader, requires MEMORY definitions each chip */
+/*  The flash loader will be placed in RAM by the debugger,
+ *  so we don't need to specify any memory areas here.
+ */
 
 SECTIONS {
     . = 0x0;
@@ -17,14 +19,6 @@ SECTIONS {
 
         KEEP(*(.text))
         KEEP(*(.text.*))
-        
-        . = ALIGN(4);
-    } > IRAM
-
-    PrgData : {
-        . = ALIGN(4);
-
-        *(COMMON)
 
         KEEP(*(.rodata))
         KEEP(*(.rodata.*))
@@ -35,19 +29,20 @@ SECTIONS {
         *(.bss .bss.*)
         *(.sbss .sbss.*)
 
+        *(COMMON)
+        
         . = ALIGN(4);
-    } > DRAM
+    }
 
     /* Description of the flash algorithm */
-    DeviceData : 
-    {
+    DeviceData . : {
         /* The device data content is only for external tools,
          * and usually not referenced by the code.
          *
          * The KEEP statement ensures it's not removed by accident.
          */
         KEEP(*(DeviceData))
-    } > INFO
+    }
 }
 
 
