@@ -1,8 +1,6 @@
 /* Shared loader, requires MEMORY definitions each chip */
 
 SECTIONS {
-    . = 0x0;
-
     /* Section for code and readonly data, specified by flashloader standard. */
     PrgCode : {
         . = ALIGN(4);
@@ -17,37 +15,20 @@ SECTIONS {
 
         KEEP(*(.text))
         KEEP(*(.text.*))
-        
-        . = ALIGN(4);
-    } > IRAM
-
-    PrgData : {
-        . = ALIGN(4);
-
-        *(COMMON)
 
         KEEP(*(.rodata))
         KEEP(*(.rodata.*))
+
+        KEEP(*(.srodata .srodata.*))
 
         *(.data .data.*)
         *(.sdata .sdata.*)
 
         *(.bss .bss.*)
         *(.sbss .sbss.*)
-
+        
         . = ALIGN(4);
-    } > DRAM
-
-    /* Description of the flash algorithm */
-    DeviceData : 
-    {
-        /* The device data content is only for external tools,
-         * and usually not referenced by the code.
-         *
-         * The KEEP statement ensures it's not removed by accident.
-         */
-        KEEP(*(DeviceData))
-    } > INFO
+    } > IRAM
 }
 
 

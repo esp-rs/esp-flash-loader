@@ -5,9 +5,19 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+esp32c3 = "0.2.0"
 panic-never  = "0.1.0"
 ufmt = { version = "0.1.0", optional = true }
 
 
 [features]
 log = ["ufmt"]
+
+[profile.release]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = "fat"
+opt-level = 's'
+overflow-checks = false
