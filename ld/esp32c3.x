@@ -83,3 +83,12 @@ PROVIDE( ets_efuse_get_spiconfig = 0x4000071c );
 
 
 PROVIDE( uart_tx_one_char = 0x40000068 );
+
+/* GROUP CLOCK */
+PROVIDE ( ets_get_apb_freq = 0x40000580 );
+PROVIDE ( ets_get_cpu_frequency = 0x40000584 );
+PROVIDE ( ets_update_cpu_frequency = 0x40000588 );
+PROVIDE ( ets_get_printf_channel = 0x4000058c );
+PROVIDE ( ets_get_xtal_div = 0x40000590 );
+PROVIDE ( ets_set_xtal_div = 0x40000594 );
+PROVIDE ( ets_get_xtal_freq = 0x40000598 );

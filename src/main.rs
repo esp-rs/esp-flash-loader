@@ -14,9 +14,6 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-use esp32c3::RTC_CNTL;
-
-
 const FLASH_SECTOR_SIZE: u32 = 4096;
 
 #[cfg(feature = "log")]
@@ -50,17 +47,11 @@ macro_rules! dprintln {
 
 #[cfg(not(feature = "log"))]
 #[macro_export]
-    macro_rules! dprintln {
-        () => {
-            
-        };
-        ($fmt:expr) => {
-            
-        };
-        ($fmt:expr, $($arg:tt)*) => {
-            
-        };
-    }
+macro_rules! dprintln {
+    () => {};
+    ($fmt:expr) => {};
+    ($fmt:expr, $($arg:tt)*) => {};
+}
 
 #[allow(unused)]
 extern "C" {
@@ -91,14 +82,16 @@ extern "C" {
     // fn esp_rom_spiflash_config_clk();
     // fn esp_rom_spiflash_config_readmode();
 
-    fn esp_rom_spiflash_read_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
-    fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
-    fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
+    // fn esp_rom_spiflash_read_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
+    // fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
+    // fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
+    fn esp_rom_spiflash_config_clk(div: u8, spi: u8) -> i32;
 
     fn uart_tx_one_char(byte: u8);
 
     fn ets_efuse_get_spiconfig() -> u32;
+    fn ets_get_apb_freq() -> u32;
 
 }
 
@@ -106,38 +99,63 @@ extern "C" {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
-    dprintln!("INIT");
+    static mut INITD: bool = false;
 
-    // // todo setup higher speed clocks
-    // let peripherals = esp32c3::Peripherals::steal();
-    // let rtc_ctl = peripherals.RTC_CNTL;
-   
-    // // set apb to xtal mhz
-    // rtc_ctl.rtc_store5.write(|w| w.bits(150));
+    if !INITD {
+        // TODODODOODODODODOD
+        // TODO higher speed apb doesn't seem to affectflash speed, probably needs qio or something - look into how esptool flashes so fast
+        //    
 
-    let spiconfig: u32 = ets_efuse_get_spiconfig();
-    // let spiconfig = 1; // hspi
+        dprintln!("INIT - APB freq: {}", ets_get_apb_freq());
 
-    esp_rom_spiflash_attach(spiconfig, false);
+        // todo setup higher speed clocks
+        let peripherals = esp32c3::Peripherals::steal();
 
-    let res = esp_rom_spiflash_unlock();
-    if res != 0 {
-        return res;
+        let system = peripherals.SYSTEM;
+
+        let x = system.sysclk_conf.read();
+
+        dprintln!("DIVIDER: {}", x.pre_div_cnt().bits());
+        dprintln!("CLOCK_SEL: {}", x.soc_clk_sel().bits());
+        dprintln!("XTAL_FREQ: {}", x.clk_xtal_freq().bits());
+
+        system.sysclk_conf.modify(|_, w| {
+            w.pre_div_cnt().bits(0b0) // 40mhz
+        });
+
+        let res = esp_rom_spiflash_config_clk(1, 0);
+        if res != 0 {
+            return res;
+        }
+
+        let spiconfig: u32 = ets_efuse_get_spiconfig();
+        // let spiconfig = 1; // hspi
+
+        esp_rom_spiflash_attach(spiconfig, false);
+
+        let res = esp_rom_spiflash_unlock();
+        if res != 0 {
+            return res;
+        }
+
+        dprintln!("DIVIDER: {}", x.pre_div_cnt().bits());
+        dprintln!("CLOCK_SEL: {}", x.soc_clk_sel().bits());
+        dprintln!("XTAL_FREQ: {}", x.clk_xtal_freq().bits());
+
+        dprintln!("INIT - APB freq after: {}", ets_get_apb_freq());
+
+        INITD = true;
     }
 
     0
 }
 
-fn clk_val_to_reg_val(input: u32) -> u32 {
-    return (input & 0xFFFF) | ((input & 0xFFFF) << 16);
-}
 /// Erase the sector at the given address in flash
 ///
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
-
     let res = esp_rom_spiflash_unlock();
     if res != 0 {
         return res;
@@ -162,7 +180,6 @@ pub unsafe extern "C" fn EraseChip() -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
-
     let res = esp_rom_spiflash_unlock();
     if res != 0 {
         return res;
@@ -173,8 +190,8 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
         return res;
     }
 
-    dprintln!("PROGRAM {} bytes @ {}",  sz, adr);
-        
+    dprintln!("PROGRAM {} bytes @ {}", sz, adr);
+
     let res = esp_rom_spiflash_write(adr, buf, sz);
     if res != 0 {
         return res;
