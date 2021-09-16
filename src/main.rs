@@ -7,14 +7,7 @@
 //
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
 
-// use panic_never as _;
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
-
-use esp32c3::RTC_CNTL;
+use panic_never as _;
 
 
 const FLASH_SECTOR_SIZE: u32 = 4096;
@@ -108,12 +101,8 @@ extern "C" {
 pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
 
-    // // todo setup higher speed clocks
-    // let peripherals = esp32c3::Peripherals::steal();
-    // let rtc_ctl = peripherals.RTC_CNTL;
-   
-    // // set apb to xtal mhz
-    // rtc_ctl.rtc_store5.write(|w| w.bits(150));
+    // TODO setup higher speed clocks
+    // TODO setup qio mode for supported flash chips
 
     let spiconfig: u32 = ets_efuse_get_spiconfig();
     // let spiconfig = 1; // hspi
@@ -128,9 +117,6 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     0
 }
 
-fn clk_val_to_reg_val(input: u32) -> u32 {
-    return (input & 0xFFFF) | ((input & 0xFFFF) << 16);
-}
 /// Erase the sector at the given address in flash
 ///
 /// Returns 0 on success, 1 on failure.
