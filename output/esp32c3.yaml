@@ -33,19 +33,19 @@ flash_algorithms:
       - main
     description: "A flash loader for the esp32c3."
     default: true
-    instructions: QREGxpcAx//ngIBxgUWXAMf/54BgFbJAQQEXA8f/ZwBjEkERBsYixCqElwDH/+eAYBEJxSJEskBBAYKAE1XEACJEskBBARcDx/9nACMOAUWCgEERBsYixCbCSsCyhC6JKoSXAMf/54DgDQHlk/U0AJnFAkmSRCJEskBBAYKAIoWmhUqGAkmSRCJEskBBARcDx/9nAOMJAUWCgAAA
+    instructions: QREGxpcAx//ngIBxgUWXAMf/54BgFbJAQQEXA8f/ZwBjEjGBFwPH/2cAQxAXA8f/ZwBDDxN3NgABxxMFoAqCgK6GsoU2hhcDx/9nAGMOAUWCgAAA
     pc_init: 1
-    pc_uninit: 151
-    pc_program_page: 83
+    pc_uninit: 79
+    pc_program_page: 53
     pc_erase_sector: 35
-    pc_erase_all: 79
-    data_section_offset: 156
+    pc_erase_all: 45
+    data_section_offset: 84
     load_address: 0x40390000
     flash_properties:
       address_range:
         start: 0
         end: 16777216
-      page_size: 256
+      page_size: 2048
       erased_byte_value: 255
       program_page_timeout: 1000
       erase_sector_timeout: 2000

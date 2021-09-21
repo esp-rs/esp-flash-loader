@@ -105,7 +105,6 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     // TODO setup qio mode for supported flash chips
 
     let spiconfig: u32 = ets_efuse_get_spiconfig();
-    // let spiconfig = 1; // hspi
 
     esp_rom_spiflash_attach(spiconfig, false);
 
@@ -123,12 +122,6 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
-
-    let res = esp_rom_spiflash_unlock();
-    if res != 0 {
-        return res;
-    }
-
     dprintln!("ERASE @ {}", adr);
     let res = esp_rom_spiflash_erase_sector(adr / FLASH_SECTOR_SIZE);
     if res != 0 {
@@ -141,22 +134,16 @@ pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn EraseChip() -> i32 {
-    // esp_rom_spiflash_erase_chip()
-    0
+    esp_rom_spiflash_erase_chip()
 }
 
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
-
-    let res = esp_rom_spiflash_unlock();
-    if res != 0 {
-        return res;
-    }
-
     let buf_addr: u32 = buf as *const _ as _;
     if buf_addr % 4 != 0 {
-        return res;
+        dprintln!("ERROR buf not word aligned");
+        return 0xAA;
     }
 
     dprintln!("PROGRAM {} bytes @ {}",  sz, adr);
@@ -172,5 +159,5 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn UnInit(_fnc: u32) -> i32 {
-    0 // TODO - what needs to be uninitialized?
+    0
 }
