@@ -11,7 +11,7 @@ fi
 
 BASE_ADDR=0x40390000
 
-cargo build --release
+cargo build --release --features log
 ELF=target/riscv32imc-unknown-none-elf/release/esp-flashloader
 
 rust-objdump --disassemble $ELF > target/disassembly.s
