@@ -9,7 +9,6 @@
 
 use panic_never as _;
 
-
 const FLASH_SECTOR_SIZE: u32 = 4096;
 
 #[cfg(feature = "log")]
@@ -43,17 +42,11 @@ macro_rules! dprintln {
 
 #[cfg(not(feature = "log"))]
 #[macro_export]
-    macro_rules! dprintln {
-        () => {
-            
-        };
-        ($fmt:expr) => {
-            
-        };
-        ($fmt:expr, $($arg:tt)*) => {
-            
-        };
-    }
+macro_rules! dprintln {
+    () => {};
+    ($fmt:expr) => {};
+    ($fmt:expr, $($arg:tt)*) => {};
+}
 
 #[allow(unused)]
 extern "C" {
@@ -99,18 +92,24 @@ extern "C" {
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
-    dprintln!("INIT");
+    static mut INITD: bool = false;
 
-    // TODO setup higher speed clocks
-    // TODO setup qio mode for supported flash chips
+    if !INITD {
+        dprintln!("INIT");
 
-    let spiconfig: u32 = ets_efuse_get_spiconfig();
+        // TODO setup higher speed clocks - pll to max clocks
+        // TODO setup qio mode for supported flash chips - use spi_memory crate?
 
-    esp_rom_spiflash_attach(spiconfig, false);
+        let spiconfig: u32 = ets_efuse_get_spiconfig();
 
-    let res = esp_rom_spiflash_unlock();
-    if res != 0 {
-        return res;
+        esp_rom_spiflash_attach(spiconfig, false);
+
+        let res = esp_rom_spiflash_unlock();
+        if res != 0 {
+            return res;
+        }
+
+        INITD = true;
     }
 
     0
@@ -146,8 +145,8 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
         return 0xAA;
     }
 
-    dprintln!("PROGRAM {} bytes @ {}",  sz, adr);
-        
+    dprintln!("PROGRAM {} bytes @ {}", sz, adr);
+
     let res = esp_rom_spiflash_write(adr, buf, sz);
     if res != 0 {
         return res;
