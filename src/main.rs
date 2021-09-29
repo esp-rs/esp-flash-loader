@@ -11,6 +11,9 @@ use panic_never as _;
 
 const FLASH_SECTOR_SIZE: u32 = 4096;
 
+#[cfg(not(any(target_arch = "xtensa", target_arch = "riscv32")))]
+compile_error!("specify the target with `--target`");
+
 #[cfg(feature = "log")]
 mod log {
 

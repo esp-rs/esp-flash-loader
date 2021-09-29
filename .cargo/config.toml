@@ -1,18 +1,8 @@
 
 
-[target.riscv32imc-unknown-none-elf]
-## For flash loader
+[target.'cfg(any(target_arch = "xtensa", target_arch = "riscv32"))']
 rustflags = [
-    "-C", "link-arg=-Tld/esp32c3.x",
     "-C", "link-arg=-Tld/loader.x",
     "-C", "link-args=-Map=target/esp-loader.map",
     "-C", "link-args=--nmagic",
-
-    # We don't know where the flash loader will be
-    # placed in memory, so we need to create
-    # position independent code (pic).
-    # "-C", "relocation-model=pic", # no longer required after https://github.com/probe-rs/probe-rs/pull/822
 ]
-
-[build]
-target = "riscv32imc-unknown-none-elf"

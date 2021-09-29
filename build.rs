@@ -8,7 +8,10 @@ fn main() {
     fs::copy("ld/loader.x", out_dir.join("loader.x")).unwrap();
     println!("cargo:rerun-if-changed=ld/loader.x");
 
-    // TODO feature gate per chip?
-    fs::copy("ld/esp32c3.x", out_dir.join("esp32c3.x")).unwrap();
-    println!("cargo:rerun-if-changed=ld/rom.x");
+    #[cfg(feature = "esp32c3")]
+    {
+        fs::copy("ld/esp32c3.x", out_dir.join("esp32c3.x")).unwrap();
+        println!("cargo:rerun-if-changed=ld/esp32c3.x");
+        println!("cargo:rustc-link-arg=-Tld/esp32c3.x");
+    }
 }

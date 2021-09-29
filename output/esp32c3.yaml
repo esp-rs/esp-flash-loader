@@ -12,16 +12,23 @@ variants:
     memory_map:
       - Nvm:
           range:
-            start: 0
-            end: 16777216
-          is_boot_memory: false
+            start: 0x0
+            end: 0x800000
+          is_boot_memory: true
           cores: 
             - main
-      - Ram:
+      - Ram: # Instruction bus access
           range:
             start: 0x40380000
             end: 0x403E0000
-          is_boot_memory: true
+          is_boot_memory: false
+          cores: 
+            - main
+      - Ram: # Data bus access
+          range:
+            start: 0x3FC80000
+            end: 0x3FC90000
+          is_boot_memory: false
           cores: 
             - main
     flash_algorithms:
@@ -43,8 +50,8 @@ flash_algorithms:
     load_address: 0x40390000
     flash_properties:
       address_range:
-        start: 0
-        end: 16777216
+        start: 0x0
+        end: 0x800000
       page_size: 2048
       erased_byte_value: 255
       program_page_timeout: 1000
