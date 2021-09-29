@@ -53,11 +53,22 @@ macro_rules! dprintln {
 
 #[allow(unused)]
 extern "C" {
-    fn esp_rom_spiflash_wait_idle(/* esp_rom_spiflash_chip_t *spi */);
 
+    // fn esp_rom_spiflash_wait_idle(/* esp_rom_spiflash_chip_t *spi */);
     // fn esp_rom_spiflash_write_encrypted_enable();
     // fn esp_rom_spiflash_write_encrypted_disable();
     // fn esp_rom_spiflash_write_encrypted(addr: u32, data: *const u8, len: u32);
+    // fn esp_rom_spiflash_config_param();
+    // fn esp_rom_spiflash_read_user_cmd();
+    // fn esp_rom_spiflash_select_qio_pins();
+    // fn esp_rom_spi_flash_auto_sus_res();
+    // fn esp_rom_spi_flash_send_resume();
+    // fn esp_rom_spi_flash_update_id();
+    // fn esp_rom_spiflash_config_clk();
+    // fn esp_rom_spiflash_config_readmode();
+    // fn esp_rom_spiflash_read_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
+    // fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
+    // fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
 
     fn esp_rom_spiflash_erase_chip() -> i32;
     fn esp_rom_spiflash_erase_block(block_number: u32) -> i32;
@@ -71,18 +82,6 @@ extern "C" {
     fn esp_rom_spiflash_unlock() -> i32;
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
 
-    // fn esp_rom_spiflash_config_param();
-    // fn esp_rom_spiflash_read_user_cmd();
-    // fn esp_rom_spiflash_select_qio_pins();
-    // fn esp_rom_spi_flash_auto_sus_res();
-    // fn esp_rom_spi_flash_send_resume();
-    // fn esp_rom_spi_flash_update_id();
-    // fn esp_rom_spiflash_config_clk();
-    // fn esp_rom_spiflash_config_readmode();
-
-    fn esp_rom_spiflash_read_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
-    fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
-    fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
 
     fn uart_tx_one_char(byte: u8);
@@ -99,9 +98,6 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 
     if !INITD {
         dprintln!("INIT");
-
-        // TODO setup higher speed clocks - pll to max clocks
-        // TODO setup qio mode for supported flash chips - use spi_memory crate?
 
         let spiconfig: u32 = ets_efuse_get_spiconfig();
 
@@ -162,4 +158,70 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
 #[inline(never)]
 pub extern "C" fn UnInit(_fnc: u32) -> i32 {
     0
+}
+
+#[allow(non_upper_case_globals)]
+#[no_mangle]
+#[used]
+#[link_section = "DeviceData"]
+pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
+    vers: 0x0001,
+    dev_name: [0u8; 128],
+    dev_type: 5,
+    dev_addr: 0x0,
+    device_size: 0x4_000_000, /* set to max of 64MB */
+    page_size: 2048,
+    _reserved: 0,
+    empty: 0xFF,
+    program_time_out: 1000,
+    erase_time_out: 2000,
+    flash_sectors: sectors(),
+};
+
+const fn sectors() -> [FlashSector; 512] {
+    const SECTOR_END: FlashSector = FlashSector {
+        size: 0xffff_ffff,
+        address: 0xffff_ffff,
+    };
+
+    let mut sectors = [FlashSector::default(); 512];
+
+    sectors[0] = FlashSector {
+        size: 0x1000, // 4k
+        address: 0x0,
+    };
+    sectors[1] = SECTOR_END;
+
+    sectors
+}
+
+#[repr(C)]
+pub struct FlashDeviceDescription {
+    vers: u16,
+    dev_name: [u8; 128],
+    dev_type: u16,
+    dev_addr: u32,
+    device_size: u32,
+    page_size: u32,
+    _reserved: u32,
+    empty: u8,
+    program_time_out: u32,
+    erase_time_out: u32,
+    flash_sectors: [FlashSector; 512],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct FlashSector {
+    size: u32,
+    address: u32,
+}
+
+impl FlashSector {
+    const fn default() -> Self {
+        FlashSector {
+            size: 0,
+            address: 0,
+        }
+    }
 }
