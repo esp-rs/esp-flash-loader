@@ -29,6 +29,17 @@ SECTIONS {
         
         . = ALIGN(4);
     } > IRAM
+
+    /* Description of the flash algorithm */
+    DeviceData : 
+    {
+        /* The device data content is only for external tools,
+         * and usually not referenced by the code.
+         *
+         * The KEEP statement ensures it's not removed by accident.
+         */
+        KEEP(*(DeviceData))
+    } > IRAM
 }
 
 
