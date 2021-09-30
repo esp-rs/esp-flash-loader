@@ -73,15 +73,12 @@ extern "C" {
     fn esp_rom_spiflash_erase_chip() -> i32;
     fn esp_rom_spiflash_erase_block(block_number: u32) -> i32;
     fn esp_rom_spiflash_erase_sector(sector_number: u32) -> i32;
-
     /// address (4 byte alignment), data, length
     fn esp_rom_spiflash_write(dest_addr: u32, data: *const u8, len: u32) -> i32;
     /// address (4 byte alignment), data, length
     fn esp_rom_spiflash_read(src_addr: u32, data: *const u32, len: u32) -> i32;
-
     fn esp_rom_spiflash_unlock() -> i32;
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
-
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
 
     fn uart_tx_one_char(byte: u8);
@@ -169,7 +166,7 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_name: [0u8; 128],
     dev_type: 5,
     dev_addr: 0x0,
-    device_size: 0x4_000_000, /* set to max of 64MB */
+    device_size: u32::MAX, /* Set to max, is limited by NVM size */
     page_size: 2048,
     _reserved: 0,
     empty: 0xFF,

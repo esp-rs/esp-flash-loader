@@ -1,8 +1,8 @@
 ---
-name: "esp32"
+name: esp32
 manufacturer: ~
 variants:
-  - name: "esp32c3"
+  - name: esp32c3
     part: ~
     cores:
       - name: main
@@ -12,46 +12,43 @@ variants:
     memory_map:
       - Nvm:
           range:
-            start: 0x0
-            end: 0x800000
+            start: 0
+            end: 8388608
           is_boot_memory: true
-          cores: 
+          cores:
             - main
-      - Ram: # Instruction bus access
+      - Ram:
           range:
-            start: 0x40380000
-            end: 0x403E0000
+            start: 1077411840
+            end: 1077805056
           is_boot_memory: false
-          cores: 
+          cores:
             - main
-      - Ram: # Data bus access
+      - Ram:
           range:
-            start: 0x3FC80000
-            end: 0x3FC90000
+            start: 1070071808
+            end: 1070137344
           is_boot_memory: false
-          cores: 
+          cores:
             - main
     flash_algorithms:
       - esp32c3-flashloader
 flash_algorithms:
-  - esp-flashloader:
-    name: esp32c3-flashloader
-    cores: 
-      - main
-    description: "A flash loader for the esp32c3."
+  - name: esp32c3-flashloader
+    description: A flash loader for the esp32c3.
     default: true
     instructions: QREGxjcFOUADRQUHGcEBRS2glwDH/+eAoHCBRZcAx//ngIAUlwDH/+eAwBEZ5QFFtwU5QAVGI4jFBrJAQQGCgDGBFwPH/2cAYw4XA8f/ZwBjDRN3NgABxxMFoAqCgK6GsoU2hhcDx/9nAIMMAUWCgAAAAAA=
-    pc_init: 1
-    pc_uninit: 109
-    pc_program_page: 83
-    pc_erase_sector: 65
-    pc_erase_all: 75
+    load_address: 1077477376
+    pc_init: 0
+    pc_uninit: 108
+    pc_program_page: 82
+    pc_erase_sector: 64
+    pc_erase_all: 74
     data_section_offset: 116
-    load_address: 0x40390000
     flash_properties:
       address_range:
-        start: 0x0
-        end: 0x800000
+        start: 0
+        end: 67108864
       page_size: 2048
       erased_byte_value: 255
       program_page_timeout: 1000
@@ -59,4 +56,5 @@ flash_algorithms:
       sectors:
         - size: 4096
           address: 0
-
+    cores:
+      - main
