@@ -166,7 +166,7 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_name: [0u8; 128],
     dev_type: 5,
     dev_addr: 0x0,
-    device_size: u32::MAX, /* Set to max, is limited by NVM size */
+    device_size: 0x4000000, /* Max of 64MB */ // TODO change per variant?
     page_size: 2048,
     _reserved: 0,
     empty: 0xFF,

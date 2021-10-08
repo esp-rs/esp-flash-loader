@@ -13,7 +13,7 @@ variants:
       - Nvm:
           range:
             start: 0
-            end: 8388608
+            end: 67108864
           is_boot_memory: true
           cores:
             - main
