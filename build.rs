@@ -9,9 +9,14 @@ fn main() {
     println!("cargo:rerun-if-changed=ld/loader.x");
 
     #[cfg(feature = "esp32c3")]
+    let chip = "esp32c3";
+    #[cfg(feature = "esp32c6")]
+    let chip = "esp32c6";
+
+    
     {
-        fs::copy("ld/esp32c3.x", out_dir.join("esp32c3.x")).unwrap();
-        println!("cargo:rerun-if-changed=ld/esp32c3.x");
-        println!("cargo:rustc-link-arg=-Tld/esp32c3.x");
+        fs::copy(format!("ld/{}.x", chip), out_dir.join(format!("{}.x", chip))).unwrap();
+        println!("cargo:rerun-if-changed=ld/{}.x", chip);
+        println!("cargo:rustc-link-arg=-Tld/{}.x", chip);
     }
 }
