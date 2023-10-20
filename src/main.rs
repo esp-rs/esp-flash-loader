@@ -98,7 +98,7 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 
         #[cfg(feature = "esp32c3")]
         let spiconfig: u32 = ets_efuse_get_spiconfig();
-        #[cfg(feature = "esp32c6")]
+        #[cfg(any(feature = "esp32c6", feature = "esp32h2"))]
         let spiconfig: u32 = 0;
 
         esp_rom_spiflash_attach(spiconfig, false);

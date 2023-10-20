@@ -15,6 +15,7 @@ log = ["ufmt"]
 # targets
 esp32c3 = []
 esp32c6 = []
+esp32h2 = []
 
 [profile.release]
 codegen-units = 1

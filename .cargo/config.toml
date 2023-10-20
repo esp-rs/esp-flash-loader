@@ -6,3 +6,6 @@ rustflags = [
     "-C", "link-args=-Map=target/esp-loader.map",
     "-C", "link-args=--nmagic",
 ]
+
+[unstable]
+build-std = [ "core" ]
