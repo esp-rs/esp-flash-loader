@@ -50,5 +50,13 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
         1. [Search the symbol in esp-idf](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+esp_rom_spiflash_attach+path%3A*c2*&type=code)
         2. Add it to the ROM API linker script: `PROVIDE(esp_rom_spiflash_attach = spi_flash_attach);`
 7. Use `target-gen` _without_ the `update` flag to generate a new yaml algorithm.
-8. Merge the new flash algorithm into the the main `esp32c3.yaml`
-9. Upstream the new updates to probe-rs.
+8. Update the resulting yaml file
+   1. Update `name` to `esp32`
+   2. Update variants `name`, `type`, `core_access_options` and `memory_map`
+      - The first `!Nvm`  block represents the raw flash starting at 0 and up to the maximum supported external flash (check TRM for this, usually in "System and Memory/Features")
+      - Next `!Ram` block corresponds to IRAM, it starts at ORIGIN + LENGTH (values defined in step 3) and ends at the end of the IRAM section(check target memory map)
+      - Next `!Ram` corresponds to DRAM, use the start and end value of the memory map
+      - Next `!Nvm` corresponds to IROM, use the start and end value of the memory map
+      - Next `!Nvm` corresponds to DROM, use the start and end value of the memory map
+9.  Merge the new flash algorithm into the the main `esp32c3.yaml`
+10. Upstream the new updates to probe-rs.
