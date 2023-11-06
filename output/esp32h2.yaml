@@ -40,6 +40,7 @@ flash_algorithms:
   pc_erase_sector: 0x36
   pc_erase_all: 0x40
   data_section_offset: 0x40810068
+  load_address: 0x40810000
   flash_properties:
     address_range:
       start: 0x0
