@@ -1,6 +1,6 @@
-name: esp32
+name: esp32c2
 variants:
-  - name: esp32c3
+  - name: esp32c2
     cores:
       - name: main
         type: riscv
