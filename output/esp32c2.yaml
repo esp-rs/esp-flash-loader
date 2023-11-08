@@ -15,7 +15,7 @@ variants:
           - main
       - !Ram
         range:
-          start: 0x403cc800
+          start: 0x40380000
           end: 0x403c0000
         cores:
           - main
