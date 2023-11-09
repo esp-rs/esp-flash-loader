@@ -98,7 +98,7 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 
         #[cfg(feature = "esp32c3")]
         let spiconfig: u32 = ets_efuse_get_spiconfig();
-        #[cfg(any(feature = "esp32c6", feature = "esp32h2"))]
+        #[cfg(any(feature = "esp32c2", feature = "esp32c6", feature = "esp32h2"))]
         let spiconfig: u32 = 0;
 
         esp_rom_spiflash_attach(spiconfig, false);
@@ -169,7 +169,8 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_name: [0u8; 128],
     dev_type: 5,
     dev_addr: 0x0,
-    device_size: 0x4000000, /* Max of 64MB */ // TODO change per variant?
+    device_size: 0x4000000, /* Max of 64MB */
+    // TODO change per variant?
     page_size: 2048,
     _reserved: 0,
     empty: 0xFF,
