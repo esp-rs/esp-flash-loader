@@ -55,10 +55,10 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
    1. Update `name`
    2. Update variants `name`, `type`, `core_access_options` and `memory_map`
       - The first `!Nvm`  block represents the raw flash starting at 0 and up to the maximum supported external flash (check TRM for this, usually in "System and Memory/Features")
-      - Next `!Ram` block corresponds to IRAM, it starts at ORIGIN + LENGTH (values defined in step 3) and ends at the end of the IRAM section(check target memory map)
-      - Next `!Ram` corresponds to DRAM, use the start and end value of the memory map
-      - Next `!Nvm` corresponds to IROM, use the start and end value of the memory map
-      - Next `!Nvm` corresponds to DROM, use the start and end value of the memory map
+      - Next `!Ram` block corresponds to instruction bus for internal SRAM, see Internal Memory Address Mapping of TRM
+      - Next `!Ram` block corresponds to data bus for internal SRAM, see Internal Memory Address Mapping of TRM
+      - Next `!Nvm` corresponds to instruction bus for external memory, see External Memory Address Mapping of TRM
+      - Next `!Nvm` corresponds to data bus for external memory, see External Memory Address Mapping of TRM
    3. Add `load_address` under `flash_algorithms` and assing the IRAM `ORIGIN` value (step 3).
 9.  Merge the new flash algorithm into the the main `esp32c3.yaml`
-10. Upstream the new updates to probe-rs.
+10.  Upstream the new updates to probe-rs.
