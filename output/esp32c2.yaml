@@ -6,32 +6,32 @@ variants:
         type: riscv
         core_access_options: !Riscv {}
     memory_map:
-      - !Nvm
+      - !Nvm # 16 Mb Max addressable Flash size (see Section 3.2 - Features of TRM)
         range:
           start: 0x0
           end: 0x1000000
         is_boot_memory: true
         cores:
           - main
-      - !Ram
+      - !Ram # Instruction bus for internal SRAM 1  (see Table 3.1 - Internal Memory Address Mapping of TRM)
         range:
           start: 0x40380000
           end: 0x403c0000
         cores:
           - main
-      - !Ram
+      - !Ram # Data bus for internal SRAM 1  (see Table 3.1 - Internal Memory Address Mapping of TRM)
         range:
           start: 0x3fca0000
           end: 0x3fce0000
         cores:
           - main
-      - !Nvm
+      - !Nvm # External instruction bus (see Table 3.2 - External Memory Address Mapping of TRM)
         range:
           start: 0x42000000
           end: 0x42400000
         cores:
           - main
-      - !Nvm
+      - !Nvm # External Data Bus (see Table 3.2 - External Memory Address Mapping of TRM)
         range:
           start: 0x3c000000
           end: 0x3c400000
