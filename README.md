@@ -60,5 +60,4 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
       - Next `!Nvm` corresponds to instruction bus for external memory, see External Memory Address Mapping of TRM
       - Next `!Nvm` corresponds to data bus for external memory, see External Memory Address Mapping of TRM
    3. Add `load_address` under `flash_algorithms` and assing the IRAM `ORIGIN` value (step 3).
-9.  Merge the new flash algorithm into the the main `esp32c3.yaml`
-10.  Upstream the new updates to probe-rs.
+9. Upstream the new updates to probe-rs.
