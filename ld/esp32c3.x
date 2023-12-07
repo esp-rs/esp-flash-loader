@@ -1,5 +1,3 @@
-
-
 MEMORY {
     /* Start 64k into the RAM region */
     IRAM : ORIGIN = 0x40390000, LENGTH = 0x40000
