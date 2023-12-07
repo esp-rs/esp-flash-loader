@@ -3,11 +3,13 @@ use std::{env, fs};
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    println!("cargo:rustc-link-search)={}", out_dir.display());
+    println!("cargo:rustc-link-search={}", out_dir.display());
 
     fs::copy("ld/loader.x", out_dir.join("loader.x")).unwrap();
     println!("cargo:rerun-if-changed=ld/loader.x");
 
+    #[cfg(feature = "esp32s3")]
+    let chip = "esp32s3";
     #[cfg(feature = "esp32c2")]
     let chip = "esp32c2";
     #[cfg(feature = "esp32c3")]

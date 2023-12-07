@@ -14,6 +14,7 @@ extern "C" {
     // fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
     // fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
 
+    #[cfg(not(feature = "esp32s2"))]
     fn esp_rom_spiflash_erase_chip() -> i32;
     fn esp_rom_spiflash_erase_block(block_number: u32) -> i32;
     // fn esp_rom_spiflash_erase_sector(sector_number: u32) -> i32;
@@ -26,13 +27,14 @@ extern "C" {
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
 
-    #[cfg(feature = "esp32c3")]
+    #[cfg(any(feature = "esp32c3", feature = "esp32s3"))]
     fn ets_efuse_get_spiconfig() -> u32;
 }
 
 pub fn attach() {
-    #[cfg(feature = "esp32c3")]
+    #[cfg(any(feature = "esp32c3", feature = "esp32s3"))]
     let spiconfig: u32 = unsafe { ets_efuse_get_spiconfig() };
+
     #[cfg(any(feature = "esp32c2", feature = "esp32c6", feature = "esp32h2"))]
     let spiconfig: u32 = 0;
 
@@ -69,6 +71,21 @@ pub fn wait_for_idle() -> i32 {
             return res;
         }
     }
+
+    0
+}
+
+#[cfg(feature = "esp32s2")]
+unsafe fn esp_rom_spiflash_erase_chip() -> i32 {
+    let res = wait_for_idle();
+    if res < 0 {
+        return res;
+    }
+
+    let cmd_reg: *mut u32 = core::mem::transmute(0x3f40_2000);
+
+    cmd_reg.write_volatile(1 << 22);
+    while cmd_reg.read_volatile() != 0 {}
 
     0
 }

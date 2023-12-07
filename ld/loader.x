@@ -15,11 +15,12 @@ SECTIONS {
 
         KEEP(*(.literal))
         KEEP(*(.literal.*))
-        KEEP(*(.text))
-        KEEP(*(.text.*))
 
         KEEP(*(.rodata))
         KEEP(*(.rodata.*))
+
+        KEEP(*(.text))
+        KEEP(*(.text.*))
 
         KEEP(*(.srodata .srodata.*))
 
