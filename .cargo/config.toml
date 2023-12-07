@@ -1,4 +1,8 @@
-
+[alias]
+esp32c2 = "build --release --features esp32c2 --target riscv32imc-unknown-none-elf"
+esp32c3 = "build --release --features esp32c3 --target riscv32imc-unknown-none-elf"
+esp32c6 = "build --release --features esp32c6 --target riscv32imac-unknown-none-elf"
+esp32h2 = "build --release --features esp32h2 --target riscv32imac-unknown-none-elf"
 
 [target.'cfg(any(target_arch = "xtensa", target_arch = "riscv32"))']
 rustflags = [
