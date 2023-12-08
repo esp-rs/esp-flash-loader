@@ -74,7 +74,7 @@ extern "C" {
     /// address (4 byte alignment), data, length
     fn esp_rom_spiflash_write(dest_addr: u32, data: *const u8, len: u32) -> i32;
     /// address (4 byte alignment), data, length
-    fn esp_rom_spiflash_read(src_addr: u32, data: *const u32, len: u32) -> i32;
+    fn esp_rom_spiflash_read(src_addr: u32, data: *mut u32, len: u32) -> i32;
     fn esp_rom_spiflash_read_user_cmd(status: *mut u32, cmd: u8) -> i32;
     fn esp_rom_spiflash_unlock() -> i32;
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
@@ -83,7 +83,6 @@ extern "C" {
     fn uart_tx_one_char(byte: u8);
 
     fn ets_efuse_get_spiconfig() -> u32;
-
 }
 
 unsafe fn wait_for_idle() -> i32 {
@@ -98,6 +97,126 @@ unsafe fn wait_for_idle() -> i32 {
     }
 
     0
+}
+
+unsafe fn pad_buffer(adr: u32, sz: u32, buf: *mut u8, block_sz: u32) -> i32 {
+    let mut src = adr + sz;
+    let mut dst = buf.add(sz as usize);
+    let mut remaining = block_sz - sz;
+
+    let skip_bytes = src as usize % 4;
+    if skip_bytes != 0 {
+        let mut tmp = 0;
+
+        let res = esp_rom_spiflash_read(src & 0x3, &mut tmp, 4);
+        if res != 0 {
+            return res;
+        }
+
+        match skip_bytes {
+            1 => {
+                *dst = (tmp >> 8) as u8;
+                dst = dst.add(1);
+                *dst = (tmp >> 16) as u8;
+                dst = dst.add(1);
+                *dst = (tmp >> 24) as u8;
+                dst = dst.add(1);
+            }
+            2 => {
+                *dst = (tmp >> 16) as u8;
+                dst = dst.add(1);
+                *dst = (tmp >> 24) as u8;
+                dst = dst.add(1);
+            }
+            3 => {
+                *dst = (tmp >> 24) as u8;
+                dst = dst.add(1);
+            }
+            _ => {}
+        }
+
+        src += skip_bytes as u32;
+        remaining += skip_bytes as u32;
+    }
+
+    esp_rom_spiflash_read(src, dst.cast(), remaining)
+}
+
+unsafe fn compare(mut a: *const u8, mut b: *const u8, len: u32) -> bool {
+    let end = a.add(len as usize);
+
+    while a < end {
+        if *a != *b {
+            return false;
+        }
+        a = a.add(1);
+        b = b.add(1);
+    }
+
+    true
+}
+
+unsafe fn is_empty(mut a: *const u8, len: u32) -> bool {
+    let end = a.add(len as usize);
+
+    while a < end {
+        if *a != 0xFF {
+            return false;
+        }
+        a = a.add(1);
+    }
+
+    true
+}
+
+enum VerifyResult {
+    Same,
+    Different,
+    Empty,
+}
+
+unsafe fn verify_buffer(adr: u32, sz: u32, buf: *const u8) -> Result<VerifyResult, i32> {
+    let mut buf = buf;
+    let mut adr = adr;
+    let end = adr + sz;
+
+    let mut result = None;
+
+    let mut readback = core::mem::MaybeUninit::<[u8; 256]>::uninit();
+    while adr < end {
+        let res = esp_rom_spiflash_read(adr, readback.as_mut_ptr().cast(), 256);
+        if res != 0 {
+            return Err(res);
+        }
+
+        match result {
+            Some(VerifyResult::Empty) => {
+                if !is_empty(readback.as_ptr().cast(), 256) {
+                    return Ok(VerifyResult::Different);
+                }
+            }
+            Some(VerifyResult::Different) => {}
+            Some(VerifyResult::Same) => {
+                if !compare(buf, readback.as_ptr().cast(), 256) {
+                    return Ok(VerifyResult::Different);
+                }
+            }
+            None => {
+                if is_empty(readback.as_ptr().cast(), 256) {
+                    result = Some(VerifyResult::Empty);
+                } else if compare(buf, readback.as_ptr().cast(), 256) {
+                    result = Some(VerifyResult::Same);
+                } else {
+                    return Ok(VerifyResult::Different);
+                }
+            }
+        }
+
+        buf = buf.add(256);
+        adr += 256;
+    }
+
+    Ok(VerifyResult::Same)
 }
 
 /// Setup the device for the
@@ -127,15 +246,14 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
 #[inline(never)]
-pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
-    dprintln!("ERASE @ {}", adr);
-    esp_rom_spiflash_erase_block(adr / FLASH_BLOCK_SIZE)
+pub unsafe extern "C" fn EraseSector(_adr: u32) -> i32 {
+    0
 }
 
 #[no_mangle]
 #[inline(never)]
 pub unsafe extern "C" fn EraseChip() -> i32 {
-    esp_rom_spiflash_erase_chip()
+    0
 }
 
 #[no_mangle]
@@ -147,9 +265,35 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
         return 0xAA;
     }
 
+    let block_sz = if sz <= 4096 { 4096 } else { 65536 };
+
     dprintln!("PROGRAM {} bytes @ {}", sz, adr);
 
-    esp_rom_spiflash_write(adr, buf, sz)
+    let mut res = pad_buffer(adr, sz, buf.cast_mut(), block_sz);
+    let mut erase = false;
+
+    if res == 0 {
+        match verify_buffer(adr, block_sz, buf) {
+            Ok(VerifyResult::Same) => return 0,
+            Ok(VerifyResult::Different) => erase = true,
+            Ok(VerifyResult::Empty) => erase = false,
+            Err(err) => return err,
+        };
+    }
+
+    if res == 0 && erase {
+        res = if block_sz == 4096 {
+            esp_rom_spiflash_erase_sector(adr / 4096)
+        } else {
+            esp_rom_spiflash_erase_block(adr / 65536)
+        };
+    }
+
+    if res == 0 {
+        res = esp_rom_spiflash_write(adr, buf, block_sz);
+    }
+
+    res
 }
 
 #[no_mangle]
@@ -169,7 +313,7 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_addr: 0x0,
     device_size: 0x4000000, /* Max of 64MB */
     // TODO change per variant?
-    page_size: 16384,
+    page_size: FLASH_BLOCK_SIZE,
     _reserved: 0,
     empty: 0xFF,
     program_time_out: 1000,
