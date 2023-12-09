@@ -167,7 +167,7 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_name: [0u8; 128],
     dev_type: 5,
     dev_addr: 0x0,
-    device_size: 0x4000000, /* Max of 64MB */
+    device_size: 0x1000000, // Max of 16MB
     // TODO change per variant?
     page_size: 16384,
     _reserved: 0,
