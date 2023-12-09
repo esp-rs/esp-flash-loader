@@ -9,7 +9,7 @@
 
 use panic_never as _;
 
-const FLASH_SECTOR_SIZE: u32 = 4096;
+const FLASH_BLOCK_SIZE: u32 = 65536;
 
 #[cfg(not(any(target_arch = "xtensa", target_arch = "riscv32")))]
 compile_error!("specify the target with `--target`");
@@ -54,12 +54,10 @@ macro_rules! dprintln {
 #[allow(unused)]
 extern "C" {
 
-    // fn esp_rom_spiflash_wait_idle(/* esp_rom_spiflash_chip_t *spi */);
     // fn esp_rom_spiflash_write_encrypted_enable();
     // fn esp_rom_spiflash_write_encrypted_disable();
     // fn esp_rom_spiflash_write_encrypted(addr: u32, data: *const u8, len: u32);
     // fn esp_rom_spiflash_config_param();
-    // fn esp_rom_spiflash_read_user_cmd();
     // fn esp_rom_spiflash_select_qio_pins();
     // fn esp_rom_spi_flash_auto_sus_res();
     // fn esp_rom_spi_flash_send_resume();
@@ -77,6 +75,7 @@ extern "C" {
     fn esp_rom_spiflash_write(dest_addr: u32, data: *const u8, len: u32) -> i32;
     /// address (4 byte alignment), data, length
     fn esp_rom_spiflash_read(src_addr: u32, data: *const u32, len: u32) -> i32;
+    fn esp_rom_spiflash_read_user_cmd(status: *mut u32, cmd: u8) -> i32;
     fn esp_rom_spiflash_unlock() -> i32;
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
@@ -85,6 +84,20 @@ extern "C" {
 
     fn ets_efuse_get_spiconfig() -> u32;
 
+}
+
+unsafe fn wait_for_idle() -> i32 {
+    const SR_WIP: u32 = 1 << 0;
+
+    let mut status = SR_WIP;
+    while status & SR_WIP != 0 {
+        let res = esp_rom_spiflash_read_user_cmd(&mut status, 0x05);
+        if res != 0 {
+            return res;
+        }
+    }
+
+    0
 }
 
 /// Setup the device for the
@@ -103,11 +116,6 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 
         esp_rom_spiflash_attach(spiconfig, false);
 
-        let res = esp_rom_spiflash_unlock();
-        if res != 0 {
-            return res;
-        }
-
         INITD = true;
     }
 
@@ -121,12 +129,7 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 #[inline(never)]
 pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
     dprintln!("ERASE @ {}", adr);
-    let res = esp_rom_spiflash_erase_sector(adr / FLASH_SECTOR_SIZE);
-    if res != 0 {
-        return res;
-    }
-
-    0
+    esp_rom_spiflash_erase_block(adr / FLASH_BLOCK_SIZE)
 }
 
 #[no_mangle]
@@ -146,18 +149,13 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
 
     dprintln!("PROGRAM {} bytes @ {}", sz, adr);
 
-    let res = esp_rom_spiflash_write(adr, buf, sz);
-    if res != 0 {
-        return res;
-    }
-
-    0
+    esp_rom_spiflash_write(adr, buf, sz)
 }
 
 #[no_mangle]
 #[inline(never)]
-pub extern "C" fn UnInit(_fnc: u32) -> i32 {
-    0
+pub unsafe extern "C" fn UnInit(_fnc: u32) -> i32 {
+    wait_for_idle()
 }
 
 #[allow(non_upper_case_globals)]
@@ -171,7 +169,7 @@ pub static FlashDevice: FlashDeviceDescription = FlashDeviceDescription {
     dev_addr: 0x0,
     device_size: 0x4000000, /* Max of 64MB */
     // TODO change per variant?
-    page_size: 2048,
+    page_size: 16384,
     _reserved: 0,
     empty: 0xFF,
     program_time_out: 1000,
@@ -188,7 +186,7 @@ const fn sectors() -> [FlashSector; 512] {
     let mut sectors = [FlashSector::default(); 512];
 
     sectors[0] = FlashSector {
-        size: 0x1000, // 4k
+        size: 0x10000, // 64k
         address: 0x0,
     };
     sectors[1] = SECTOR_END;
