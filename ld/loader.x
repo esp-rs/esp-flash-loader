@@ -24,21 +24,26 @@ SECTIONS {
         *(.data .data.*)
         *(.sdata .sdata.*)
 
-        *(.bss .bss.*)
-        *(.sbss .sbss.*)
-        
         . = ALIGN(4);
     } > IRAM
 
     /* Description of the flash algorithm */
-    DeviceData : 
-    {
+    DeviceData : {
         /* The device data content is only for external tools,
          * and usually not referenced by the code.
          *
          * The KEEP statement ensures it's not removed by accident.
          */
         KEEP(*(DeviceData))
+    } > IRAM
+
+    .bss (NOLOAD) : {
+        . = ALIGN(4);
+
+        *(.bss .bss.*)
+        *(.sbss .sbss.*)
+
+        . = ALIGN(4);
     } > IRAM
 }
 
