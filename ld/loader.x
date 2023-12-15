@@ -24,6 +24,9 @@ SECTIONS {
         *(.data .data.*)
         *(.sdata .sdata.*)
 
+        *(.bss .bss.*)
+        *(.sbss .sbss.*)
+
         . = ALIGN(4);
     } > IRAM
 
@@ -35,15 +38,6 @@ SECTIONS {
          * The KEEP statement ensures it's not removed by accident.
          */
         KEEP(*(DeviceData))
-    } > IRAM
-
-    .bss (NOLOAD) : {
-        . = ALIGN(4);
-
-        *(.bss .bss.*)
-        *(.sbss .sbss.*)
-
-        . = ALIGN(4);
     } > IRAM
 }
 
