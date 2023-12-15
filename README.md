@@ -63,5 +63,6 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
       - Next `!Ram` block corresponds to data bus for internal SRAM, see Internal Memory Address Mapping of TRM
       - Next `!Nvm` corresponds to instruction bus for external memory, see External Memory Address Mapping of TRM
       - Next `!Nvm` corresponds to data bus for external memory, see External Memory Address Mapping of TRM
-   3. Add `load_address` under `flash_algorithms` and assing the IRAM `ORIGIN` value (step 3).
+   3. Add `load_address` under `flash_algorithms` and assign the IRAM `ORIGIN` value (step 3).
+   4. Add `transfer_encoding: Miniz` under `load_address`
 9. Upstream the new updates to probe-rs.
