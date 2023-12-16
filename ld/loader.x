@@ -13,6 +13,8 @@ SECTIONS {
          * KEEP statement here.
          */
 
+        KEEP(*(.literal))
+        KEEP(*(.literal.*))
         KEEP(*(.text))
         KEEP(*(.text.*))
 
