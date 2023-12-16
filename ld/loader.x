@@ -26,13 +26,12 @@ SECTIONS {
 
         *(.bss .bss.*)
         *(.sbss .sbss.*)
-        
+
         . = ALIGN(4);
     } > IRAM
 
     /* Description of the flash algorithm */
-    DeviceData : 
-    {
+    DeviceData : {
         /* The device data content is only for external tools,
          * and usually not referenced by the code.
          *
