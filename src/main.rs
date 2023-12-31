@@ -1,5 +1,9 @@
 #![no_std]
 #![no_main]
+#![cfg_attr(
+    target_arch = "xtensa",
+    feature(asm_experimental_arch, naked_functions)
+)]
 
 // Define necessary functions for flash loader
 //
@@ -7,12 +11,16 @@
 //
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
 
+use core::ptr::addr_of_mut;
+
 use panic_never as _;
 
 use crate::tinfl::{
     OutBuffer, TinflDecompressor, TINFL_STATUS_DONE, TINFL_STATUS_NEEDS_MORE_INPUT,
 };
 
+#[cfg_attr(any(target_arch = "xtensa"), path = "api_xtensa.rs")]
+mod api;
 mod flash;
 mod properties;
 mod tinfl;
@@ -38,7 +46,7 @@ mod log {
         type Error = ();
         fn write_str(&mut self, s: &str) -> Result<(), ()> {
             for &b in s.as_bytes() {
-                unsafe { crate::uart_tx_one_char(b) };
+                unsafe { uart_tx_one_char(b) };
             }
             Ok(())
         }
@@ -69,15 +77,44 @@ macro_rules! dprintln {
 
 static mut DECOMPRESSOR: Option<Decompressor> = None;
 
+// We need to access the page buffers and decompressor on the data bus, otherwise we'll run into
+// LoadStoreError exceptions. This should be removed once probe-rs can place data into the correct
+// memory region.
+fn addr_to_data_bus(addr: usize) -> usize {
+    #[cfg(feature = "esp32s3")]
+    {
+        use core::ops::Range;
+
+        const OFFSET: isize = 0x4037_8000 - 0x3FC8_8000;
+        const IRAM: Range<usize> = 0x4000_0000..0x403E_0000;
+
+        if IRAM.contains(&addr) {
+            return (addr as isize - OFFSET) as usize;
+        }
+    }
+
+    addr
+}
+
+unsafe fn data_bus<T>(ptr: *const T) -> *const T {
+    addr_to_data_bus(ptr as usize) as *const T
+}
+
+unsafe fn data_bus_mut<T>(ptr: *mut T) -> *mut T {
+    addr_to_data_bus(ptr as usize) as *mut T
+}
+
 unsafe fn decompressor<'a>() -> Option<&'a mut Decompressor> {
-    unsafe { DECOMPRESSOR.as_mut() }
+    let decompressor = addr_of_mut!(DECOMPRESSOR);
+    let decompressor = data_bus_mut(decompressor);
+
+    decompressor.as_mut().unwrap_unchecked().as_mut()
 }
 
 /// Setup the device for the flashing process.
 #[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
-    if DECOMPRESSOR.is_none() {
+pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
+    if decompressor().is_none() {
         dprintln!("INIT");
 
         flash::attach();
@@ -92,20 +129,17 @@ pub unsafe extern "C" fn Init(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 ///
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn EraseSector(adr: u32) -> i32 {
+pub unsafe extern "C" fn EraseSector_impl(adr: u32) -> i32 {
     flash::erase_block(adr)
 }
 
 #[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn EraseChip() -> i32 {
+pub unsafe extern "C" fn EraseChip_impl() -> i32 {
     flash::erase_chip()
 }
 
 #[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
+pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
     let Some(decompressor) = decompressor() else {
         return ERROR_BASE_INTERNAL - 1;
     };
@@ -116,14 +150,17 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
     }
 
     dprintln!("PROGRAM {} bytes @ {}", sz, adr);
+
+    // Access data through the data bus
+    let buf = data_bus(buf);
+
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
     decompressor.program(adr, input)
 }
 
 #[no_mangle]
-#[inline(never)]
-pub unsafe extern "C" fn UnInit(_fnc: u32) -> i32 {
+pub unsafe extern "C" fn UnInit_impl(_fnc: u32) -> i32 {
     let Some(decompressor) = decompressor() else {
         return ERROR_BASE_INTERNAL - 1;
     };
@@ -239,7 +276,6 @@ impl Decompressor {
 
             self.reinit(address, compressed_length);
         }
-
         self.decompress(data)
     }
 }
