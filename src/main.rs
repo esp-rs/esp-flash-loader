@@ -77,19 +77,30 @@ macro_rules! dprintln {
 
 static mut DECOMPRESSOR: Option<Decompressor> = None;
 
+#[cfg(feature = "esp32s2")]
+mod chip_specific {
+    use core::ops::Range;
+
+    pub const OFFSET: isize = 0x4002_8000 - 0x3FFB_8000;
+    pub const IRAM: Range<usize> = 0x4000_0000..0x4007_2000;
+}
+
+#[cfg(feature = "esp32s3")]
+mod chip_specific {
+    use core::ops::Range;
+
+    pub const OFFSET: isize = 0x4037_8000 - 0x3FC8_8000;
+    pub const IRAM: Range<usize> = 0x4000_0000..0x403E_0000;
+}
+
 // We need to access the page buffers and decompressor on the data bus, otherwise we'll run into
 // LoadStoreError exceptions. This should be removed once probe-rs can place data into the correct
 // memory region.
 fn addr_to_data_bus(addr: usize) -> usize {
-    #[cfg(feature = "esp32s3")]
+    #[cfg(any(feature = "esp32s2", feature = "esp32s3"))]
     {
-        use core::ops::Range;
-
-        const OFFSET: isize = 0x4037_8000 - 0x3FC8_8000;
-        const IRAM: Range<usize> = 0x4000_0000..0x403E_0000;
-
-        if IRAM.contains(&addr) {
-            return (addr as isize - OFFSET) as usize;
+        if chip_specific::IRAM.contains(&addr) {
+            return (addr as isize - chip_specific::OFFSET) as usize;
         }
     }
 
