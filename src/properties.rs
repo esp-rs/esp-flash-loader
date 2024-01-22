@@ -3,7 +3,6 @@ pub const PAGE_SIZE: u32 = 0x4000;
 pub const FLASH_BLOCK_SIZE: u32 = 65536;
 
 #[cfg(any(
-    feature = "esp32",
     feature = "esp32c2",
     feature = "esp32c3",
     feature = "esp32c6",

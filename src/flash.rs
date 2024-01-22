@@ -27,16 +27,26 @@ extern "C" {
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
     fn esp_rom_spiflash_attach(config: u32, legacy: bool);
 
-    #[cfg(any(feature = "esp32c3", feature = "esp32s3"))]
+    #[cfg(any(
+        feature = "esp32",
+        feature = "esp32s2",
+        feature = "esp32s3",
+        feature = "esp32c3",
+    ))]
     fn ets_efuse_get_spiconfig() -> u32;
 }
 
 pub fn attach() {
-    #[cfg(any(feature = "esp32c3", feature = "esp32s3"))]
-    let spiconfig: u32 = unsafe { ets_efuse_get_spiconfig() };
+    #[cfg(any(
+        feature = "esp32",
+        feature = "esp32s2",
+        feature = "esp32s3",
+        feature = "esp32c3",
+    ))]
+    let spiconfig = unsafe { ets_efuse_get_spiconfig() };
 
     #[cfg(any(feature = "esp32c2", feature = "esp32c6", feature = "esp32h2"))]
-    let spiconfig: u32 = 0;
+    let spiconfig = 0;
 
     // TODO: raise CPU frequency
 
