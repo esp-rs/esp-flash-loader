@@ -20,7 +20,7 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 
 | name    | supported |
 | ------- | --------- |
-| esp32   | N         |
+| esp32   | Y         |
 | esp32s2 | Y         |
 | esp32s3 | Y         |
 | esp32c2 | Y         |

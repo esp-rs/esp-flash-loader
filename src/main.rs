@@ -21,16 +21,21 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 //  - stack comes automatically after the loader
 
 // Xtensa   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
+// -------- | ----------- | ----------- | ----------- | -------------- | -----------
+// ESP32    | 0x4009_0000 | -           | 0x3FFC_0000 | 0x3FFD_0000    | 0x3FFE_0000
 // ESP32-S2 | 0x4002_C400 | 0x3FFB_C400 | 0x3FFB_E000 | 0x3FFC_E000    | 0x3FFD_F000
 // ESP32-S3 | 0x4038_0400 | 0x3FC9_0400 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
 
 // RISC-V   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | DRAM end (avoiding cache)
+// -------- | ----------- | ----------- | ----------- | -------------- | -----------
 // ESP32-C2 | 0x4038_C000 | 0x3FCA_C000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
 // ESP32-C3 | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
 // ESP32-C6 | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
 // ESP32-H2 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
 
 // "State" base address
+#[cfg(feature = "esp32")]
+const STATE_ADDR: usize = 0x3FFC_0000;
 #[cfg(feature = "esp32s2")]
 const STATE_ADDR: usize = 0x3FFB_E000;
 #[cfg(feature = "esp32s3")]
