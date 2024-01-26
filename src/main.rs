@@ -7,17 +7,17 @@
 
 // Target memory configuration
 
-// Decompressor is 43776 bytes, reserve more to hold INIT (reserve 64K)
+// Decompressor is 43776 bytes, reserve more in case compiler changes layout
 const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 
 // Placement:
 // - Xtensa: Pin stack top first, calculate backwards:
 //  - 32K stack
 //  - 32K for data pages
-//  - 64K for state (decompressor + INIT)
+//  - 64K for decompressor state
 // - RISC-V: At the end of memory, calculate backwards:
 //  - 64K for data pages (32K needed, but 64K is easier to calculate)
-//  - 64K for state (decompressor + INIT)
+//  - 64K for decompressor state
 //  - stack comes automatically after the loader
 
 // Xtensa   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
@@ -114,8 +114,13 @@ macro_rules! dprintln {
     ($fmt:expr, $($arg:tt)*) => {};
 }
 
-const INITED: *mut bool = STATE_ADDR as *mut bool;
+const INITED_MAGIC: u32 = 0xAAC0FFEE;
+const INITED: *mut u32 = STATE_ADDR as *mut u32;
 const DECOMPRESSOR: *mut Decompressor = (STATE_ADDR + 4) as *mut Decompressor;
+
+fn is_inited() -> bool {
+    unsafe { *INITED == INITED_MAGIC }
+}
 
 /// Setup the device for the flashing process.
 #[no_mangle]
@@ -125,7 +130,7 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     flash::attach();
 
     *DECOMPRESSOR = Decompressor::new();
-    *INITED = true;
+    *INITED = INITED_MAGIC;
 
     0
 }
@@ -135,17 +140,23 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
 pub unsafe extern "C" fn EraseSector_impl(adr: u32) -> i32 {
+    if !is_inited() {
+        return ERROR_BASE_INTERNAL - 1;
+    };
     flash::erase_block(adr)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn EraseChip_impl() -> i32 {
+    if !is_inited() {
+        return ERROR_BASE_INTERNAL - 1;
+    };
     flash::erase_chip()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    if !*INITED {
+    if !is_inited() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -163,7 +174,7 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
 
 #[no_mangle]
 pub unsafe extern "C" fn UnInit_impl(_fnc: u32) -> i32 {
-    if !*INITED {
+    if !is_inited() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -172,7 +183,7 @@ pub unsafe extern "C" fn UnInit_impl(_fnc: u32) -> i32 {
     // The flash ROM functions don't wait for the end of the last operation.
     let r = flash::wait_for_idle();
 
-    *INITED = false;
+    *INITED = 0;
 
     r
 }
