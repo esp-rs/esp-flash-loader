@@ -1,6 +1,6 @@
 MEMORY {
     /* SRAM1 + 0x4000 cache + 0x400 vectors */
-    IRAM : ORIGIN = 0x4002C400, LENGTH = 0x48000 - 0x4000 - 0x400
+    IRAM : ORIGIN = 0x4002C400, LENGTH = 0x10000
 }
 
 /**

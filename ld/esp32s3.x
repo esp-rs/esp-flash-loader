@@ -1,6 +1,6 @@
 MEMORY {
     /* SRAM2 + 0x8400 */
-    IRAM : ORIGIN = 0x40380400, LENGTH = 0x40000
+    IRAM : ORIGIN = 0x40380400, LENGTH = 0x10000
 }
 
 /* ROM function interface esp32s3.rom.ld for esp32s3
