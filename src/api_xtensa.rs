@@ -12,7 +12,7 @@ static STACK_PTR: u32 = 0x3FFE_0000;
 #[cfg(feature = "esp32s2")]
 #[no_mangle]
 // End of SRAM1. SRAM0 may be used as cache and thus may be inaccessible.
-static STACK_PTR: u32 = 0x4000_0000;
+static STACK_PTR: u32 = 0x3FFD_F000;
 
 #[cfg(feature = "esp32s3")]
 #[no_mangle]
