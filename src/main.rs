@@ -119,20 +119,13 @@ const DECOMPRESSOR: *mut Decompressor = (STATE_ADDR + 4) as *mut Decompressor;
 
 /// Setup the device for the flashing process.
 #[no_mangle]
-pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, fnc: u32) -> i32 {
-    const FUNC_ERASE: u32 = 1;
-    if fnc == FUNC_ERASE {
-        *INITED = false;
-    }
+pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
+    dprintln!("INIT");
 
-    if *INITED {
-        dprintln!("INIT");
+    flash::attach();
 
-        flash::attach();
-
-        *DECOMPRESSOR = Decompressor::new();
-        *INITED = true;
-    }
+    *DECOMPRESSOR = Decompressor::new();
+    *INITED = true;
 
     0
 }
@@ -177,7 +170,11 @@ pub unsafe extern "C" fn UnInit_impl(_fnc: u32) -> i32 {
     (*DECOMPRESSOR).flush();
 
     // The flash ROM functions don't wait for the end of the last operation.
-    flash::wait_for_idle()
+    let r = flash::wait_for_idle();
+
+    *INITED = false;
+
+    r
 }
 
 pub struct Decompressor {
