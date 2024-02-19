@@ -8,6 +8,8 @@ fn main() {
     fs::copy("ld/loader.x", out_dir.join("loader.x")).unwrap();
     println!("cargo:rerun-if-changed=ld/loader.x");
 
+    #[cfg(feature = "esp32")]
+    let chip = "esp32";
     #[cfg(feature = "esp32s2")]
     let chip = "esp32s2";
     #[cfg(feature = "esp32s3")]
