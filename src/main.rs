@@ -5,13 +5,52 @@
     feature(asm_experimental_arch, naked_functions)
 )]
 
+// Target memory configuration
+
+// Decompressor is 43776 bytes, reserve more in case compiler changes layout
+const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
+
+// Placement:
+// - Xtensa: Pin stack top first, calculate backwards:
+//  - 32K stack
+//  - 32K for data pages
+//  - 64K for decompressor state
+// - RISC-V: At the end of memory, calculate backwards:
+//  - 64K for data pages (32K needed, but 64K is easier to calculate)
+//  - 64K for decompressor state
+//  - stack comes automatically after the loader
+
+// Xtensa   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
+// ESP32-S2 | 0x4002_C400 | 0x3FFB_C400 | 0x3FFB_E000 | 0x3FFC_E000    | 0x3FFD_F000
+// ESP32-S3 | 0x4038_0400 | 0x3FC9_0400 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+
+// RISC-V   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | DRAM end (avoiding cache)
+// ESP32-C2 | 0x4038_C000 | 0x3FCA_C000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+// ESP32-C3 | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+// ESP32-C6 | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
+// ESP32-H2 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
+
+// "State" base address
+#[cfg(feature = "esp32s2")]
+const STATE_ADDR: usize = 0x3FFB_E000;
+#[cfg(feature = "esp32s3")]
+const STATE_ADDR: usize = 0x3FCB_0000;
+#[cfg(feature = "esp32c2")]
+const STATE_ADDR: usize = 0x3FCB_0000;
+#[cfg(feature = "esp32c3")]
+const STATE_ADDR: usize = 0x3FCB_0000;
+#[cfg(feature = "esp32c6")]
+const STATE_ADDR: usize = 0x4086_0000;
+#[cfg(feature = "esp32h2")]
+const STATE_ADDR: usize = 0x4082_0000;
+
+// End of target memory configuration
+
 // Define necessary functions for flash loader
 //
 // These are taken from the [ARM CMSIS-Pack documentation]
 //
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
-
-use core::ptr::addr_of_mut;
 
 use panic_never as _;
 
@@ -25,12 +64,12 @@ mod flash;
 mod properties;
 mod tinfl;
 
+#[cfg(not(any(target_arch = "xtensa", target_arch = "riscv32")))]
+compile_error!("specify the target with `--target`");
+
 const ERROR_BASE_INTERNAL: i32 = -1000;
 const ERROR_BASE_TINFL: i32 = -2000;
 const ERROR_BASE_FLASH: i32 = -4000;
-
-#[cfg(not(any(target_arch = "xtensa", target_arch = "riscv32")))]
-compile_error!("specify the target with `--target`");
 
 #[cfg(feature = "log")]
 mod log {
@@ -75,63 +114,23 @@ macro_rules! dprintln {
     ($fmt:expr, $($arg:tt)*) => {};
 }
 
-static mut DECOMPRESSOR: Option<Decompressor> = None;
+const INITED_MAGIC: u32 = 0xAAC0FFEE;
+const INITED: *mut u32 = STATE_ADDR as *mut u32;
+const DECOMPRESSOR: *mut Decompressor = (STATE_ADDR + 4) as *mut Decompressor;
 
-#[cfg(feature = "esp32s2")]
-mod chip_specific {
-    use core::ops::Range;
-
-    pub const OFFSET: isize = 0x4002_8000 - 0x3FFB_8000;
-    pub const IRAM: Range<usize> = 0x4000_0000..0x4007_2000;
-}
-
-#[cfg(feature = "esp32s3")]
-mod chip_specific {
-    use core::ops::Range;
-
-    pub const OFFSET: isize = 0x4037_8000 - 0x3FC8_8000;
-    pub const IRAM: Range<usize> = 0x4000_0000..0x403E_0000;
-}
-
-// We need to access the page buffers and decompressor on the data bus, otherwise we'll run into
-// LoadStoreError exceptions. This should be removed once probe-rs can place data into the correct
-// memory region.
-fn addr_to_data_bus(addr: usize) -> usize {
-    #[cfg(any(feature = "esp32s2", feature = "esp32s3"))]
-    {
-        if chip_specific::IRAM.contains(&addr) {
-            return (addr as isize - chip_specific::OFFSET) as usize;
-        }
-    }
-
-    addr
-}
-
-unsafe fn data_bus<T>(ptr: *const T) -> *const T {
-    addr_to_data_bus(ptr as usize) as *const T
-}
-
-unsafe fn data_bus_mut<T>(ptr: *mut T) -> *mut T {
-    addr_to_data_bus(ptr as usize) as *mut T
-}
-
-unsafe fn decompressor<'a>() -> Option<&'a mut Decompressor> {
-    let decompressor = addr_of_mut!(DECOMPRESSOR);
-    let decompressor = data_bus_mut(decompressor);
-
-    decompressor.as_mut().unwrap_unchecked().as_mut()
+fn is_inited() -> bool {
+    unsafe { *INITED == INITED_MAGIC }
 }
 
 /// Setup the device for the flashing process.
 #[no_mangle]
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
-    if decompressor().is_none() {
-        dprintln!("INIT");
+    dprintln!("INIT");
 
-        flash::attach();
+    flash::attach();
 
-        DECOMPRESSOR = Some(Decompressor::new());
-    }
+    *DECOMPRESSOR = Decompressor::new();
+    *INITED = INITED_MAGIC;
 
     0
 }
@@ -141,17 +140,23 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
 pub unsafe extern "C" fn EraseSector_impl(adr: u32) -> i32 {
+    if !is_inited() {
+        return ERROR_BASE_INTERNAL - 1;
+    };
     flash::erase_block(adr)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn EraseChip_impl() -> i32 {
+    if !is_inited() {
+        return ERROR_BASE_INTERNAL - 1;
+    };
     flash::erase_chip()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    let Some(decompressor) = decompressor() else {
+    if !is_inited() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -162,24 +167,25 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
 
     dprintln!("PROGRAM {} bytes @ {}", sz, adr);
 
-    // Access data through the data bus
-    let buf = data_bus(buf);
-
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
-    decompressor.program(adr, input)
+    (*DECOMPRESSOR).program(adr, input)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn UnInit_impl(_fnc: u32) -> i32 {
-    let Some(decompressor) = decompressor() else {
+    if !is_inited() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
-    decompressor.flush();
+    (*DECOMPRESSOR).flush();
 
     // The flash ROM functions don't wait for the end of the last operation.
-    flash::wait_for_idle()
+    let r = flash::wait_for_idle();
+
+    *INITED = 0;
+
+    r
 }
 
 pub struct Decompressor {

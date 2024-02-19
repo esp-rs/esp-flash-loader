@@ -37,7 +37,7 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
     ```c
     MEMORY {
         /* Start 64k into the RAM region */
-        IRAM : ORIGIN = 0x40390000, LENGTH = 0x40000
+        IRAM : ORIGIN = 0x40390000, LENGTH = 0x10000
     }
     ```
     It's important to note that the algorithm cannot be loaded at the start of RAM, because probe-rs has a header it loads prior to the algo hence the 64K offset.
@@ -47,15 +47,21 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
     #[cfg(feature = "esp32c3")]
     let chip = "esp32c3";
     ```
-6. [Define `spiconfig` for your the target in `main.rs`](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+ets_efuse_get_spiconfig+path%3A*c3*&type=code)
-7. Follow the instructions above for building
+6. [Define `spiconfig` for your the target in `flash.rs`](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+ets_efuse_get_spiconfig+path%3A*c3*&type=code)
+7. Add your device to the table in `main.rs` and calculate addresses.
+8. Define your target's `STATE_ADDR`
+    ```rust
+    #[cfg(feature = "esp32c3")]
+    const STATE_ADDR: usize = 0x3FCC_0000;
+    ```
+9. Follow the instructions above for building
   - It may fail with: `rust-lld: error: undefined symbol: <symbol>`
     - In this case, you need to add the missing method in the ROM API linker script.
       - Eg. ESP32-C2 is missing `esp_rom_spiflash_attach`:
         1. [Search the symbol in esp-idf](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+esp_rom_spiflash_attach+path%3A*c2*&type=code)
         2. Add it to the ROM API linker script: `PROVIDE(esp_rom_spiflash_attach = spi_flash_attach);`
-8. Use `target-gen` _without_ the `update` flag to generate a new yaml algorithm.
-9. Update the resulting yaml file
+10. Use `target-gen` _without_ the `update` flag to generate a new yaml algorithm.
+11. Update the resulting yaml file
    1. Update `name`
    2. Update variants `name`, `type`, `core_access_options` and `memory_map`
       - The first `!Nvm`  block represents the raw flash starting at 0 and up to the maximum supported external flash (check TRM for this, usually in "System and Memory/Features")
@@ -63,6 +69,7 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
       - Next `!Ram` block corresponds to data bus for internal SRAM, see Internal Memory Address Mapping of TRM
       - Next `!Nvm` corresponds to instruction bus for external memory, see External Memory Address Mapping of TRM
       - Next `!Nvm` corresponds to data bus for external memory, see External Memory Address Mapping of TRM
-   3. Add `load_address` under `flash_algorithms` and assign the IRAM `ORIGIN` value (step 3).
+   3. Add `load_address` under `flash_algorithms` and assign the IRAM `ORIGIN` value (step 4).
+   4. Add `data_load_address` under `flash_algorithms` and assign an appropriate value residing in DRAM.
    4. Add `transfer_encoding: Miniz` under `load_address`
-9. Upstream the new updates to probe-rs.
+12. Upstream the new updates to probe-rs.
