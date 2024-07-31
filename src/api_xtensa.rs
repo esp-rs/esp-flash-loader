@@ -88,6 +88,23 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
 
 #[no_mangle]
 #[naked]
+pub unsafe extern "C" fn ReadFlash(adr: u32, sz: u32, buf: *mut u8) -> i32 {
+    asm!(
+        "
+        .global ReadFlash_impl
+        l32r a1, STACK_PTR
+        mov.n a6, a2
+        mov.n a7, a3
+        mov.n a8, a4
+        call4 ReadFlash_impl
+        mov.n a2, a6
+        ",
+        options(noreturn)
+    )
+}
+
+#[no_mangle]
+#[naked]
 pub unsafe extern "C" fn UnInit(fnc: u32) -> i32 {
     asm!(
         "

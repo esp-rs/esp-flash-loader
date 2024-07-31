@@ -21,7 +21,7 @@ extern "C" {
     /// address (4 byte alignment), data, length
     fn esp_rom_spiflash_write(dest_addr: u32, data: *const u8, len: u32) -> i32;
     /// address (4 byte alignment), data, length
-    // fn esp_rom_spiflash_read(src_addr: u32, data: *const u32, len: u32) -> i32;
+    fn esp_rom_spiflash_read(src_addr: u32, data: *mut u8, len: u32) -> i32;
     fn esp_rom_spiflash_read_user_cmd(status: *mut u32, cmd: u8) -> i32;
     // fn esp_rom_spiflash_unlock() -> i32;
     // fn esp_rom_spiflash_lock(); // can't find in idf defs?
@@ -69,6 +69,14 @@ pub fn write_flash(address: u32, data: &[u8]) -> i32 {
     }
     let len = data.len() as u32;
     unsafe { esp_rom_spiflash_write(address, data.as_ptr(), len) }
+}
+
+pub fn read_flash(address: u32, data: &mut [u8]) -> i32 {
+    if data.is_empty() {
+        return 0;
+    }
+    let len = data.len() as u32;
+    unsafe { esp_rom_spiflash_read(address, data.as_mut_ptr(), len) }
 }
 
 pub fn wait_for_idle() -> i32 {
