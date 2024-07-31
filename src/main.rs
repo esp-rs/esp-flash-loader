@@ -221,17 +221,8 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
     *INITED = 0;
 
     if fnc == 2 {
-        // program
-        (*DECOMPRESSOR).flush(write_to_flash);
-
         // The flash ROM functions don't wait for the end of the last operation.
-        let r = flash::wait_for_idle();
-
-        r
-    } else if fnc == 3 {
-        // verify
-        // FIXME: a bit wonky, we don't really want to report verification failures in UnInit
-        (*DECOMPRESSOR).flush(verify_flash)
+        flash::wait_for_idle()
     } else {
         0
     }
@@ -327,12 +318,6 @@ impl Decompressor {
         process: fn(u32, &[u8]) -> i32,
     ) -> i32 {
         if self.image_start != address {
-            // Finish previous image
-            let status = self.flush(process);
-            if status < 0 {
-                return status;
-            }
-
             if data.len() < 4 {
                 // We don't have enough bytes to read the length
                 return ERROR_BASE_INTERNAL - 4;
