@@ -2,6 +2,7 @@ MEMORY {
     /* Middle of SRAM0 */
     IRAM : ORIGIN = 0x40090000, LENGTH = 0x10000
 }
+
 /*
 ESP32 ROM address table
 Generated for ROM with MD5sum:
