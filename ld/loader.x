@@ -7,7 +7,7 @@ SECTIONS {
 
         /* The KEEP is necessary to ensure that the
          * sections don't get garbage collected by the linker.
-         * 
+         *
          * Because this is not a normal binary with an entry point,
          * the linker would just discard all the code without the
          * KEEP statement here.
@@ -43,5 +43,3 @@ SECTIONS {
         KEEP(*(DeviceData))
     } > IRAM
 }
-
-
