@@ -23,6 +23,11 @@ pub unsafe extern "C" fn ProgramPage(adr: u32, sz: u32, buf: *const u8) -> i32 {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Verify(adr: u32, sz: u32, buf: *const u8) -> i32 {
+    crate::Verify_impl(adr, sz, buf)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ReadFlash(adr: u32, sz: u32, buf: *mut u8) -> i32 {
     crate::ReadFlash_impl(adr, sz, buf)
 }
