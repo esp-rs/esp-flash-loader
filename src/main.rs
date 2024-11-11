@@ -33,7 +33,7 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 // ESP32-C6  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
 // ESP32-C61 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! ROM data use starts at 0x4083EA70, so let's use H2's memory layout
 // ESP32-H2  | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
-// ESP32-P4 | 0x4FF1_0000 | 0x4FF1_0000 | 0x4FF9_FFFF | 0x4FFA_FFFF    | 0x4FFB_FFFF
+// ESP32-P4  | 0x4FF1_0000 | 0x4FF1_0000 | 0x4FFA_0000 | 0x4FFB_0000    | 0x4FFC_0000
 
 // "State" base address
 #[cfg(feature = "esp32")]
@@ -55,7 +55,7 @@ const STATE_ADDR: usize = 0x4082_0000;
 #[cfg(feature = "esp32h2")]
 const STATE_ADDR: usize = 0x4082_0000;
 #[cfg(feature = "esp32p4")]
-const STATE_ADDR: usize = 0x4FF9_FFFF;
+const STATE_ADDR: usize = 0x4FFA_0000;
 
 // End of target memory configuration
 
