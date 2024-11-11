@@ -32,6 +32,7 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 // ESP32-C3 | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
 // ESP32-C6 | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
 // ESP32-H2 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
+// ESP32-P4 | 0x4FF1_0000 | 0x4FF1_0000 | 0x4FF9_FFFF | 0x4FFA_FFFF    | 0x4FFB_FFFF
 
 // "State" base address
 #[cfg(feature = "esp32")]
@@ -48,6 +49,9 @@ const STATE_ADDR: usize = 0x3FCB_0000;
 const STATE_ADDR: usize = 0x4086_0000;
 #[cfg(feature = "esp32h2")]
 const STATE_ADDR: usize = 0x4082_0000;
+#[cfg(feature = "esp32p4")]
+const STATE_ADDR: usize = 0x4FF9_FFFF;
+
 
 // End of target memory configuration
 
