@@ -1,7 +1,7 @@
 
 MEMORY {
     /* Start 64k into the RAM region */
-    IRAM : ORIGIN = 0x4FF00000, LENGTH = 0x10000
+    IRAM : ORIGIN = 0x4FF10000, LENGTH = 0x10000
 }
 
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
