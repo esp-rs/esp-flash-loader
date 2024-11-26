@@ -10,11 +10,14 @@ pub const FLASH_BLOCK_SIZE: u32 = 65536;
     feature = "esp32h2"
 ))]
 // Max of 16MB
-const FLASH_SIZE: u32 = 0x1000000;
+pub const FLASH_SIZE: u32 = 0x1000000;
 
 #[cfg(any(feature = "esp32s2", feature = "esp32s3"))]
 // Max of 1GB
-const FLASH_SIZE: u32 = 0x40000000;
+pub const FLASH_SIZE: u32 = 0x40000000;
+
+pub const FLASH_STATUS_MASK: u32 = 0xFFFF;
+pub const FLASH_SECTOR_SIZE: u32 = 4096;
 
 #[allow(non_upper_case_globals)]
 #[no_mangle]
