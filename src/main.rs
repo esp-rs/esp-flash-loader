@@ -132,12 +132,13 @@ fn is_inited() -> bool {
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
 
-    flash::attach();
-
-    *DECOMPRESSOR = Decompressor::new();
-    *INITED = INITED_MAGIC;
-
-    0
+    if flash::attach() == 0 {
+        *DECOMPRESSOR = Decompressor::new();
+        *INITED = INITED_MAGIC;
+        0
+    } else {
+        1
+    }
 }
 
 /// Erase the sector at the given address in flash
