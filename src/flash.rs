@@ -13,7 +13,6 @@ extern "C" {
     // fn esp_rom_spiflash_read_statushigh(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
     // fn esp_rom_spiflash_write_status(/* esp_rom_spiflash_chip_t *spi ,*/ status: *mut u32);
 
-    #[cfg(not(feature = "esp32s2"))]
     fn esp_rom_spiflash_erase_chip() -> i32;
     fn esp_rom_spiflash_erase_block(block_number: u32) -> i32;
     // fn esp_rom_spiflash_erase_sector(sector_number: u32) -> i32;
@@ -113,21 +112,6 @@ pub fn wait_for_idle() -> i32 {
             return res;
         }
     }
-
-    0
-}
-
-#[cfg(feature = "esp32s2")]
-unsafe fn esp_rom_spiflash_erase_chip() -> i32 {
-    let res = wait_for_idle();
-    if res < 0 {
-        return res;
-    }
-
-    let cmd_reg: *mut u32 = core::mem::transmute(0x3f40_2000);
-
-    cmd_reg.write_volatile(1 << 22);
-    while cmd_reg.read_volatile() != 0 {}
 
     0
 }
