@@ -3,16 +3,7 @@ MEMORY {
     IRAM : ORIGIN = 0x40380400, LENGTH = 0x10000
 }
 
-/* ROM function interface esp32s3.rom.ld for esp32s3
- *
- *
- * Generated from ./interface-esp32s3.yml md5sum 39c4ce259b11323b9404c192b01b712b
- *
- * Compatible with ROM where ECO version equal or greater to 0.
- *
- * THIS FILE WAS AUTOMATICALLY GENERATED. DO NOT EDIT.
- */
-
+PROVIDE( ets_delay_us = 0x40000600 );
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
 
 /***************************************
