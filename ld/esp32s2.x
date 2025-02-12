@@ -10,6 +10,7 @@ MEMORY {
  * These are all weak symbols that could be overwritten in ESP-IDF.
  */
 
+PROVIDE ( ets_delay_us = 0x4000d888 );
 PROVIDE ( ets_efuse_get_spiconfig = 0x4000e4a0 );
 PROVIDE ( s_cdcacm_old_rts = 0x3ffffd34 );
 PROVIDE ( SelectSpiFunction = 0x40015d08 );

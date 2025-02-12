@@ -3,6 +3,7 @@ MEMORY {
     IRAM : ORIGIN = 0x40390000, LENGTH = 0x10000
 }
 
+PROVIDE( ets_delay_us = 0x40000050 );
 PROVIDE( esp_rom_spiflash_wait_idle = 0x4000010c );
 PROVIDE( esp_rom_spiflash_write_encrypted = 0x40000110 );
 PROVIDE( esp_rom_spiflash_write_encrypted_dest = 0x40000114 );
