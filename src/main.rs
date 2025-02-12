@@ -119,12 +119,109 @@ macro_rules! dprintln {
     ($fmt:expr, $($arg:tt)*) => {};
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "esp32")] {
+        const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x3FF0003C as *mut u32;
+        const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+        const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
+
+        const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x3FF48070 as *mut u32;
+        const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 27;
+        const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 27;
+    } else if #[cfg(feature = "esp32s2")] {
+        const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x3F4C0018 as *mut u32;
+        const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+        const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
+
+        const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x3F4C008C as *mut u32;
+        const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
+        const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
+    } else if #[cfg(feature = "esp32s3")] {
+        const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x600C0010 as *mut u32;
+        const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+        const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
+
+        const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x600C0060 as *mut u32;
+        const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
+        const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
+    } else if #[cfg(any(feature = "esp32c2", feature = "esp32c3"))] {
+        const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x600C0008 as *mut u32;
+        const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+        const SYSTEM_CPUPERIOD_MAX:   u32 = 1;
+
+        const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x600C0058 as *mut u32;
+        const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
+        const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
+    } else if #[cfg(feature = "esp32h2")] {
+        const PCR_SYSCLK_CONF_REG: *mut u32 = 0x6009610c as *mut u32;
+
+        const PCR_SOC_CLK_SEL_M: u32 = 3 << 16;
+        const PCR_SOC_CLK_MAX: u32 = 1 << 16;
+    } else if #[cfg(feature = "esp32c6")] {
+        const PCR_SYSCLK_CONF_REG: *mut u32 = 0x60096110 as *mut u32;
+
+        const PCR_SOC_CLK_SEL_M: u32 = 3 << 16;
+        const PCR_SOC_CLK_MAX: u32 = 1 << 16;
+    }
+}
+
+struct FlasherState {
+    inited: u32,
+    #[cfg(not(any(feature = "esp32c6", feature = "esp32h2")))]
+    saved_cpu_per_conf_reg: u32,
+    saved_sysclk_conf_reg: u32,
+    decompressor: Decompressor,
+}
+
 const INITED_MAGIC: u32 = 0xAAC0FFEE;
-const INITED: *mut u32 = STATE_ADDR as *mut u32;
-const DECOMPRESSOR: *mut Decompressor = (STATE_ADDR + 4) as *mut Decompressor;
+const STATE_OBJ: *mut FlasherState = STATE_ADDR as *mut FlasherState;
+
+fn state() -> &'static mut FlasherState {
+    unsafe { &mut *STATE_OBJ }
+}
 
 fn is_inited() -> bool {
-    unsafe { *INITED == INITED_MAGIC }
+    state().inited == INITED_MAGIC
+}
+
+fn set_max_cpu_freq() {
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
+            state().saved_sysclk_conf_reg = unsafe { PCR_SYSCLK_CONF_REG.read_volatile() };
+        } else {
+            state().saved_cpu_per_conf_reg = unsafe { SYSTEM_CPU_PER_CONF_REG.read_volatile() };
+            state().saved_sysclk_conf_reg = unsafe { SYSTEM_SYSCLK_CONF_REG.read_volatile() };
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
+            unsafe { PCR_SYSCLK_CONF_REG.write_volatile((state().saved_sysclk_conf_reg & !PCR_SOC_CLK_SEL_M) | PCR_SOC_CLK_MAX) };
+        } else if #[cfg(feature = "esp32s3")] {
+            extern "C" {
+                fn ets_delay_us(us: u32);
+            }
+
+            unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state().saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
+              // Leave some time for the change to settle, needed for ESP32-S3
+            unsafe { ets_delay_us(100) };
+            unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state().saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
+        } else {
+            unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state().saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
+            unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state().saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
+        }
+    }
+}
+
+fn restore_max_cpu_freq() {
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
+            unsafe { PCR_SYSCLK_CONF_REG.write_volatile(state().saved_sysclk_conf_reg) };
+        } else {
+            unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile(state().saved_sysclk_conf_reg) };
+            unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile(state().saved_cpu_per_conf_reg) };
+        }
+    }
 }
 
 /// Setup the device for the flashing process.
@@ -132,9 +229,11 @@ fn is_inited() -> bool {
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
 
+    set_max_cpu_freq();
+
     if flash::attach() == 0 {
-        *DECOMPRESSOR = Decompressor::new();
-        *INITED = INITED_MAGIC;
+        state().decompressor = Decompressor::new();
+        state().inited = INITED_MAGIC;
         0
     } else {
         1
@@ -175,7 +274,7 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
-    (*DECOMPRESSOR).program(adr, input)
+    state().decompressor.program(adr, input)
 }
 
 #[no_mangle]
@@ -193,7 +292,7 @@ pub unsafe extern "C" fn Verify_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
-    (*DECOMPRESSOR).verify(adr, input)
+    state().decompressor.verify(adr, input)
 }
 
 #[no_mangle]
@@ -219,7 +318,8 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
         return ERROR_BASE_INTERNAL - 1;
     };
 
-    *INITED = 0;
+    restore_max_cpu_freq();
+    state().inited = 0;
 
     if fnc == 2 {
         // The flash ROM functions don't wait for the end of the last operation.
