@@ -27,12 +27,13 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 | esp32c3 | Y         |
 | esp32c6 | Y         |
 | esp32h2 | Y         |
+| esp32p4 | Y         |
 
 ## Adding new chips
 
 1. Add a feature for the chip inside `Cargo.toml`
 2. Add a build alias to `.cargo/config.toml`
-3. Add the [ROM API linker script](https://github.com/search?q=repo%3Aespressif%2Fesp-idf++path%3A*rom.api.ld&type=code) inside the `ld` directory.
+3. Add the [ROM linker script](https://github.com/search?q=repo%3Aespressif%2Fesp-idf++path%3A*rom.ld&type=code) inside the `ld` directory.
 4. Inside the ROM API linker script, add a memory section detailing where the program will be loaded.
     ```c
     MEMORY {
