@@ -18,15 +18,18 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 
 ## Chip support
 
-| name    | supported |
-| ------- | --------- |
-| esp32   | Y         |
-| esp32s2 | Y         |
-| esp32s3 | Y         |
-| esp32c2 | Y         |
-| esp32c3 | Y         |
-| esp32c6 | Y         |
-| esp32h2 | Y         |
+| name     | supported |
+| -------- | --------- |
+| esp32    | Y         |
+| esp32s2  | Y         |
+| esp32s3  | Y         |
+| esp32c2  | Y         |
+| esp32c3  | Y         |
+| esp32c5  | Y         |
+| esp32c6  | Y         |
+| esp32c61 | N         |
+| esp32h2  | Y         |
+| esp32p4  | N         |
 
 ## Adding new chips
 

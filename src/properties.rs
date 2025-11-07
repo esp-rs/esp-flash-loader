@@ -6,6 +6,7 @@ pub const FLASH_BLOCK_SIZE: u32 = 65536;
     feature = "esp32",
     feature = "esp32c2",
     feature = "esp32c3",
+    feature = "esp32c5",
     feature = "esp32c6",
     feature = "esp32h2"
 ))]
