@@ -41,6 +41,9 @@ extern "C" {
         feature = "esp32c3",
     ))]
     fn ets_efuse_get_spiconfig() -> u32;
+
+    #[cfg(feature = "esp32s3")]
+    fn ets_efuse_flash_octal_mode() -> bool;
 }
 
 pub fn attach() -> i32 {
@@ -57,6 +60,13 @@ pub fn attach() -> i32 {
 
     // TODO: raise CPU frequency
 
+    unsafe { esp_rom_spiflash_attach(spiconfig, false) };
+
+    #[cfg(feature = "esp32s3")]
+    if unsafe { ets_efuse_flash_octal_mode() } {
+        init_ospi_funcs();
+    }
+
     let config_result = unsafe {
         esp_rom_spiflash_config_param(
             0,
@@ -69,18 +79,6 @@ pub fn attach() -> i32 {
     };
 
     if config_result == 0 {
-        unsafe { esp_rom_spiflash_attach(spiconfig, false) };
-
-        #[cfg(feature = "esp32s3")]
-        {
-            extern "C" {
-                fn ets_efuse_flash_octal_mode() -> bool;
-            }
-            if unsafe { ets_efuse_flash_octal_mode() } {
-                init_ospi_funcs();
-            }
-        }
-
         0
     } else {
         -1
