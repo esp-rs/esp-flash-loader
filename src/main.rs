@@ -1,9 +1,6 @@
 #![no_std]
 #![no_main]
-#![cfg_attr(
-    target_arch = "xtensa",
-    feature(asm_experimental_arch, naked_functions)
-)]
+#![cfg_attr(target_arch = "xtensa", feature(asm_experimental_arch))]
 
 // Target memory configuration
 
