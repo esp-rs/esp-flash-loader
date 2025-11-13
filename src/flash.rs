@@ -106,7 +106,12 @@ pub fn attach() -> i32 {
     ))]
     let spiconfig = unsafe { ets_efuse_get_spiconfig() };
 
-    #[cfg(any(feature = "esp32c2", feature = "esp32c6", feature = "esp32h2"))]
+    #[cfg(any(
+        feature = "esp32c2",
+        feature = "esp32c5",
+        feature = "esp32c6",
+        feature = "esp32h2"
+    ))]
     let spiconfig = 0;
 
     // TODO: raise CPU frequency
