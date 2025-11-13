@@ -43,6 +43,60 @@ extern "C" {
     fn ets_efuse_get_spiconfig() -> u32;
 }
 
+#[cfg(feature = "esp32s3")]
+#[allow(non_camel_case_types)]
+mod s3 {
+
+    type spi_flash_func_t = unsafe extern "C" fn();
+    type spi_flash_op_t = unsafe extern "C" fn() -> i32;
+    type spi_flash_erase_t = unsafe extern "C" fn(u32) -> i32;
+    type spi_flash_rd_t = unsafe extern "C" fn(u32, *mut (), i32) -> i32;
+    type spi_flash_wr_t = unsafe extern "C" fn(u32, *const u32, i32) -> i32;
+    type spi_flash_ewr_t = unsafe extern "C" fn(u32, *const (), u32) -> i32;
+    type spi_flash_wren_t = unsafe extern "C" fn(*mut ()) -> i32;
+    type spi_flash_erase_area_t = unsafe extern "C" fn(u32, u32) -> i32;
+
+    #[repr(C)]
+    pub struct spiflash_legacy_funcs_t {
+        pub pp_addr_bit_len: u8,
+        pub se_addr_bit_len: u8,
+        pub be_addr_bit_len: u8,
+        pub rd_addr_bit_len: u8,
+        pub read_sub_len: u32,
+        pub write_sub_len: u32,
+        pub unlock: Option<spi_flash_op_t>,
+        pub erase_sector: Option<spi_flash_erase_t>,
+        pub erase_block: Option<spi_flash_erase_t>,
+        pub read: Option<spi_flash_rd_t>,
+        pub write: Option<spi_flash_wr_t>,
+        pub encrypt_write: Option<spi_flash_ewr_t>,
+        pub check_sus: Option<spi_flash_func_t>,
+        pub wren: Option<spi_flash_wren_t>,
+        pub wait_idle: Option<spi_flash_op_t>,
+        pub erase_area: Option<spi_flash_erase_area_t>,
+    }
+}
+
+#[cfg(feature = "esp32s3")]
+use s3::*;
+
+#[cfg(feature = "esp32s3")]
+extern "C" {
+
+    static mut rom_spiflash_legacy_funcs: *const spiflash_legacy_funcs_t;
+    static mut rom_spiflash_legacy_data: *mut ();
+
+    fn ets_efuse_flash_octal_mode() -> bool;
+
+    fn esp_rom_opiflash_wait_idle() -> i32;
+    fn esp_rom_opiflash_erase_block_64k(addr: u32) -> i32;
+    fn esp_rom_opiflash_erase_sector(addr: u32) -> i32;
+    fn esp_rom_opiflash_read(addr: u32, buf: *mut (), len: i32) -> i32;
+    fn esp_rom_opiflash_write(addr: u32, data: *const u32, len: i32) -> i32;
+    fn esp_rom_opiflash_wren(p: *mut ()) -> i32;
+    fn esp_rom_opiflash_erase_area(start_addr: u32, end_addr: u32) -> i32;
+}
+
 pub fn attach() -> i32 {
     #[cfg(any(
         feature = "esp32",
@@ -57,6 +111,22 @@ pub fn attach() -> i32 {
 
     // TODO: raise CPU frequency
 
+    unsafe { esp_rom_spiflash_attach(spiconfig, false) };
+
+    #[cfg(feature = "esp32s3")]
+    if unsafe { ets_efuse_flash_octal_mode() } {
+        init_ospi_funcs();
+    } else {
+        // For some reason, the default pointers are not set on boot. I'm not sure if
+        // probe-rs does something wrong, or the ROM bootloader doesn't initialize memory properly under some conditions.
+        // Leaving these uninitialized ends up with a division by zero exception. These addresses have been mined out of
+        // the ROM elf, these supposed to be the default values of these variables.
+        unsafe {
+            rom_spiflash_legacy_funcs = 0x3FCEF670 as _;
+            rom_spiflash_legacy_data = 0x3FCEF6A4 as _;
+        }
+    }
+
     let config_result = unsafe {
         esp_rom_spiflash_config_param(
             0,
@@ -69,7 +139,6 @@ pub fn attach() -> i32 {
     };
 
     if config_result == 0 {
-        unsafe { esp_rom_spiflash_attach(spiconfig, false) };
         0
     } else {
         -1
@@ -114,4 +183,32 @@ pub fn wait_for_idle() -> i32 {
     }
 
     0
+}
+
+#[cfg(feature = "esp32s3")]
+fn init_ospi_funcs() {
+    static FUNCS: spiflash_legacy_funcs_t = spiflash_legacy_funcs_t {
+        pp_addr_bit_len: 24,
+        se_addr_bit_len: 24,
+        be_addr_bit_len: 24,
+        rd_addr_bit_len: 24,
+        read_sub_len: 16,
+        write_sub_len: 32,
+        unlock: Some(esp_rom_opiflash_wait_idle),
+        erase_block: Some(esp_rom_opiflash_erase_block_64k),
+        erase_sector: Some(esp_rom_opiflash_erase_sector),
+        read: Some(esp_rom_opiflash_read),
+        write: Some(esp_rom_opiflash_write),
+        encrypt_write: None,
+        check_sus: None,
+        wait_idle: Some(esp_rom_opiflash_wait_idle),
+        wren: Some(esp_rom_opiflash_wren),
+        erase_area: Some(esp_rom_opiflash_erase_area),
+    };
+
+    unsafe {
+        let funcs_iram = &raw const FUNCS;
+        rom_spiflash_legacy_funcs =
+            ((funcs_iram as usize) - 0x4038_0400 + 0x3FC9_0400) as *const spiflash_legacy_funcs_t;
+    }
 }

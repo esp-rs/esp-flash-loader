@@ -156,3 +156,9 @@ PROVIDE( Enable_QMode = 0x40000d2c );
 
 /* Functions */
 ets_efuse_get_spiconfig = 0x40001f74;
+ets_efuse_flash_octal_mode = 0x40002004;
+
+/* Data (.data, .bss, .rodata) */
+PROVIDE( rom_spiflash_legacy_funcs = 0x3fceffe8 );
+PROVIDE( rom_spiflash_legacy_data = 0x3fceffe4 );
+PROVIDE( g_flash_guard_ops = 0x3fceffec );
