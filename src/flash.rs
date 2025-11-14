@@ -46,7 +46,6 @@ extern "C" {
 #[cfg(feature = "esp32s3")]
 #[allow(non_camel_case_types)]
 mod s3 {
-
     type spi_flash_func_t = unsafe extern "C" fn();
     type spi_flash_op_t = unsafe extern "C" fn() -> i32;
     type spi_flash_erase_t = unsafe extern "C" fn(u32) -> i32;
@@ -82,7 +81,6 @@ use s3::*;
 
 #[cfg(feature = "esp32s3")]
 extern "C" {
-
     static mut rom_spiflash_legacy_funcs: *const spiflash_legacy_funcs_t;
     static mut rom_spiflash_legacy_data: *mut ();
 
