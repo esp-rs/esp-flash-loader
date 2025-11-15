@@ -108,11 +108,10 @@ pub fn attach() -> i32 {
         feature = "esp32c2",
         feature = "esp32c5",
         feature = "esp32c6",
+        feature = "esp32c61",
         feature = "esp32h2"
     ))]
     let spiconfig = 0;
-
-    // TODO: raise CPU frequency
 
     unsafe { esp_rom_spiflash_attach(spiconfig, false) };
 

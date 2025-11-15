@@ -6,12 +6,15 @@ pub const FLASH_BLOCK_SIZE: u32 = 65536;
     feature = "esp32",
     feature = "esp32c2",
     feature = "esp32c3",
-    feature = "esp32c5",
     feature = "esp32c6",
     feature = "esp32h2"
 ))]
 // Max of 16MB
 pub const FLASH_SIZE: u32 = 0x1000000;
+
+#[cfg(any(feature = "esp32c5", feature = "esp32c61"))]
+// Max of 32MB
+pub const FLASH_SIZE: u32 = 0x2000000;
 
 #[cfg(any(feature = "esp32s2", feature = "esp32s3"))]
 // Max of 1GB
