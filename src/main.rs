@@ -260,50 +260,7 @@ fn is_inited() -> bool {
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
 
-    #[cfg(feature = "esp32c61")]
-    {
-        // ROM data table addresses
-        // TODO: use for other chips, too (if they use the same format)
-        let _data_table_start = 0x4003700c;
-        let _bss_table_start = 0x400371e0;
-        let _etext = 0x40037310;
-
-        unpack(_data_table_start, _bss_table_start);
-        zero(_bss_table_start, _etext);
-
-        fn unpack(first: u32, last: u32) {
-            // Data is stored in three-byte sections:
-            // - Data section start address in RAM
-            // - Data section end address in RAM
-            // - Source address in ROM
-            let mut current = first;
-            while current < last {
-                let dst_start = unsafe { *((current) as *const u32) }; // RAM
-                let dst_end = unsafe { *((current + 4) as *const u32) }; // RAM
-                let src = unsafe { *((current + 8) as *const u32) }; // ROM
-                copy(dst_start, dst_end, src);
-                current += 12;
-            }
-        }
-
-        fn copy(dst_start: u32, dst_end: u32, src: u32) {
-            let mut addr = src;
-            let mut dst = dst_start;
-            while dst < dst_end {
-                unsafe { *(dst as *mut u32) = *(addr as *const u32) };
-                addr += 4;
-                dst += 4;
-            }
-        }
-
-        fn zero(start: u32, end: u32) {
-            let mut addr = start;
-            while addr < end {
-                unsafe { *(addr as *mut u32) = 0 };
-                addr += 4;
-            }
-        }
-    }
+    init_rom_data();
 
     set_max_cpu_freq(&mut state().saved_cpu_state);
 
@@ -314,6 +271,142 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     } else {
         1
     }
+}
+
+fn init_rom_data() {
+    struct TableDataEntry {
+        dst_start: u32, // RAM
+        dst_end: u32,   // RAM
+        src: u32,       // ROM
+    }
+
+    impl TableDataEntry {
+        // On chips where the table entry is 4 words, if the 4th word is 0, data
+        // is only unpacked by the Pro core. If the 4th word is 1, data is unpacked
+        // by both cores. This distinction is unnecessary for the flash loader.
+        // We just need to jump over the 4th word.
+        const ENTRY_SIZE: u32 = 12
+            + cfg!(any(
+                feature = "esp32",
+                feature = "esp32s2",
+                feature = "esp32s3"
+            )) as u32
+                * 4;
+
+        fn read(from: u32) -> Self {
+            let dst_start = unsafe { *(from as *const u32) }; // RAM
+            let dst_end = unsafe { *((from + 4) as *const u32) }; // RAM
+            let src = unsafe { *((from + 8) as *const u32) }; // ROM
+
+            TableDataEntry {
+                dst_start,
+                dst_end,
+                src,
+            }
+        }
+
+        fn init(&self) {
+            let mut addr = self.src;
+            let mut dst = self.dst_start;
+            while dst < self.dst_end {
+                unsafe { *(dst as *mut u32) = *(addr as *const u32) };
+                addr += 4;
+                dst += 4;
+            }
+        }
+    }
+
+    fn unpack(first: u32, end: u32) {
+        // Data is stored in three/four-word sections:
+        // - Data section start address in RAM
+        // - Data section end address in RAM
+        // - Source address in ROM
+        // - Whether to unpack code on the second core
+        let mut current = first;
+        while current < end {
+            TableDataEntry::read(current).init();
+            current += TableDataEntry::ENTRY_SIZE;
+        }
+    }
+
+    fn zero(start: u32, end: u32) {
+        let mut addr = start;
+        while addr < end {
+            unsafe { *(addr as *mut u32) = 0 };
+            addr += 4;
+        }
+    }
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "esp32")] {
+            // rev 0 and rev 300
+            const DATA_TABLE_START: u32 = 0x4000d4f8;
+            const DATA_TABLE_END: u32 = 0x4000d5c8;
+            const BSS_START: u32 = 0x4000d5d0;
+            const BSS_END: u32 = 0x4000d66c;
+        } else if #[cfg(feature = "esp32s2")] {
+            const DATA_TABLE_START: u32 = 0x4001bd64;
+            const DATA_TABLE_END: u32 = 0x4001be34;
+            const BSS_START: u32 = 0x4001be34;
+            const BSS_END: u32 = 0x4001bed0;
+        } else if #[cfg(feature = "esp32s3")] {
+            const DATA_TABLE_START: u32 = 0x40057354;
+            const DATA_TABLE_END: u32 = 0x400575c4;
+            const BSS_START: u32 = 0x400575d4;
+            const BSS_END: u32 = 0x400577a8;
+        } else if #[cfg(feature = "esp32c2")] {
+            const DATA_TABLE_START: u32 = 0x40082174;
+            const DATA_TABLE_END: u32 = 0x400823f4;
+            const BSS_START: u32 = 0x40082404;
+            const BSS_END: u32 = 0x400825e4;
+        } else if #[cfg(feature = "esp32c3")] {
+            // rev0
+            // const DATA_TABLE_START: u32 = 0x40058898;
+            // const DATA_TABLE_END: u32 = 0x40058a88;
+            // const BSS_START: u32 = 0x40058a98;
+            // const BSS_END: u32 = 0x40058c0c;
+            // rev101
+            // const DATA_TABLE_START: u32 = 0x40059620;
+            // const DATA_TABLE_END: u32 = 0x40059830;
+            // const BSS_START: u32 = 0x40059840;
+            // const BSS_END: u32 = 0x400599cc;
+            // rev3
+            const DATA_TABLE_START: u32 = 0x40059200;
+            const DATA_TABLE_END: u32 = 0x40059400;
+            const BSS_START: u32 = 0x40059410;
+            const BSS_END: u32 = 0x40059590;
+
+            // Skip copying - never seemed necessary, and we can't yet pick between ECOs
+            return;
+        } else if #[cfg(feature = "esp32c5")] {
+            // mp
+            const DATA_TABLE_START: u32 = 0x400478a8;
+            const DATA_TABLE_END: u32 = 0x40047a7c;
+            const BSS_START: u32 = 0x40047a7c;
+            const BSS_END: u32 = 0x40047bac;
+        } else if #[cfg(feature = "esp32c6")] {
+            // rev0
+            const DATA_TABLE_START: u32 = 0x40041ea8;
+            const DATA_TABLE_END: u32 = 0x40042064;
+            const BSS_START: u32 = 0x40042064;
+            const BSS_END: u32 = 0x4004a184;
+        } else if #[cfg(feature = "esp32c61")] {
+            const DATA_TABLE_START: u32 = 0x4003700c;
+            const DATA_TABLE_END: u32 = 0x400371e0;
+            const BSS_START: u32 = 0x400371e0;
+            const BSS_END: u32 = 0x40037310;
+        } else if #[cfg(feature = "esp32h2")] {
+            const DATA_TABLE_START: u32 = 0x4001a18c;
+            const DATA_TABLE_END: u32 = 0x4001a318;
+            const BSS_START: u32 = 0x4001a318;
+            const BSS_END: u32 = 0x4001a418;
+        } else {
+            compile_error!("missing data");
+        }
+    }
+
+    unpack(DATA_TABLE_START, DATA_TABLE_END);
+    zero(BSS_START, BSS_END);
 }
 
 /// Erase the sector at the given address in flash
