@@ -6,6 +6,7 @@ esp32c2 = "build --release --features esp32c2 --target riscv32imc-unknown-none-e
 esp32c3 = "build --release --features esp32c3 --target riscv32imc-unknown-none-elf"
 esp32c5 = "build --release --features esp32c5 --target riscv32imac-unknown-none-elf"
 esp32c6 = "build --release --features esp32c6 --target riscv32imac-unknown-none-elf"
+esp32c61 = "build --release --features esp32c61 --target riscv32imac-unknown-none-elf"
 esp32h2 = "build --release --features esp32h2 --target riscv32imac-unknown-none-elf"
 
 [target.'cfg(target_arch = "riscv32")']

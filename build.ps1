@@ -26,7 +26,7 @@ $deviceMap = @{
     "esp32c3" = "riscv32imc-unknown-none-elf"
     "esp32c5" = "riscv32imac-unknown-none-elf"
     "esp32c6" = "riscv32imac-unknown-none-elf"
-    # "esp32c61" = "riscv32imac-unknown-none-elf"
+    "esp32c61" = "riscv32imac-unknown-none-elf"
     "esp32h2" = "riscv32imac-unknown-none-elf"
 }
 

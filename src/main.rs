@@ -19,19 +19,20 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 //  - 64K for decompressor state
 //  - stack comes automatically after the loader
 
-// Xtensa   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
-// -------- | ----------- | ----------- | ----------- | -------------- | -----------
-// ESP32    | 0x4009_0000 | -           | 0x3FFC_0000 | 0x3FFD_0000    | 0x3FFE_0000
-// ESP32-S2 | 0x4002_C400 | 0x3FFB_C400 | 0x3FFB_E000 | 0x3FFC_E000    | 0x3FFD_F000
-// ESP32-S3 | 0x4038_0400 | 0x3FC9_0400 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+// Xtensa    | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
+// --------- | ----------- | ----------- | ----------- | -------------- | -----------
+// ESP32     | 0x4009_0000 | -           | 0x3FFC_0000 | 0x3FFD_0000    | 0x3FFE_0000
+// ESP32-S2  | 0x4002_C400 | 0x3FFB_C400 | 0x3FFB_E000 | 0x3FFC_E000    | 0x3FFD_F000
+// ESP32-S3  | 0x4038_0400 | 0x3FC9_0400 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
 
-// RISC-V   | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | DRAM end (avoiding cache)
-// -------- | ----------- | ----------- | ----------- | -------------- | -----------
-// ESP32-C2 | 0x4038_C000 | 0x3FCA_C000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
-// ESP32-C3 | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
-// ESP32-C5 | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
-// ESP32-C6 | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
-// ESP32-H2 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
+// RISC-V    | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | DRAM end (avoiding cache)
+// --------- | ----------- | ----------- | ----------- | -------------- | -----------
+// ESP32-C2  | 0x4038_C000 | 0x3FCA_C000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+// ESP32-C3  | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
+// ESP32-C5  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
+// ESP32-C6  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
+// ESP32-C61 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! ROM data use starts at 0x4083EA70, so let's use H2's memory layout
+// ESP32-H2  | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
 
 // "State" base address
 #[cfg(feature = "esp32")]
@@ -48,6 +49,8 @@ const STATE_ADDR: usize = 0x3FCB_0000;
 const STATE_ADDR: usize = 0x4084_0000;
 #[cfg(feature = "esp32c6")]
 const STATE_ADDR: usize = 0x4084_0000;
+#[cfg(feature = "esp32c61")]
+const STATE_ADDR: usize = 0x4082_0000;
 #[cfg(feature = "esp32h2")]
 const STATE_ADDR: usize = 0x4082_0000;
 
@@ -120,7 +123,10 @@ macro_rules! dprintln {
     ($fmt:expr, $($arg:tt)*) => {};
 }
 
-#[cfg(all(feature = "max-cpu-frequency", not(feature = "esp32c5")))]
+#[cfg(all(
+    feature = "max-cpu-frequency",
+    not(any(feature = "esp32c5", feature = "esp32c61"))
+))]
 mod max_cpu_frequency {
     cfg_if::cfg_if! {
         if #[cfg(feature = "esp32")] {
@@ -215,7 +221,11 @@ mod max_cpu_frequency {
     }
 }
 
-#[cfg(any(not(feature = "max-cpu-frequency"), feature = "esp32c5"))]
+#[cfg(any(
+    not(feature = "max-cpu-frequency"),
+    feature = "esp32c5",
+    feature = "esp32c61"
+))]
 mod max_cpu_frequency {
     pub struct CpuSaveState {}
 
@@ -246,6 +256,51 @@ fn is_inited() -> bool {
 #[no_mangle]
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
+
+    #[cfg(feature = "esp32c61")]
+    {
+        // ROM data table addresses
+        // TODO: use for other chips, too (if they use the same format)
+        let _data_table_start = 0x4003700c;
+        let _bss_table_start = 0x400371e0;
+        let _etext = 0x40037310;
+
+        unpack(_data_table_start, _bss_table_start);
+        zero(_bss_table_start, _etext);
+
+        fn unpack(first: u32, last: u32) {
+            // Data is stored in three-byte sections:
+            // - Data section start address in RAM
+            // - Data section end address in RAM
+            // - Source address in ROM
+            let mut current = first;
+            while current < last {
+                let dst_start = unsafe { *((current) as *const u32) }; // RAM
+                let dst_end = unsafe { *((current + 4) as *const u32) }; // RAM
+                let src = unsafe { *((current + 8) as *const u32) }; // ROM
+                copy(dst_start, dst_end, src);
+                current += 12;
+            }
+        }
+
+        fn copy(dst_start: u32, dst_end: u32, src: u32) {
+            let mut addr = src;
+            let mut dst = dst_start;
+            while dst < dst_end {
+                unsafe { *(dst as *mut u32) = *(addr as *const u32) };
+                addr += 4;
+                dst += 4;
+            }
+        }
+
+        fn zero(start: u32, end: u32) {
+            let mut addr = start;
+            while addr < end {
+                unsafe { *(addr as *mut u32) = 0 };
+                addr += 4;
+            }
+        }
+    }
 
     set_max_cpu_freq(&mut state().saved_cpu_state);
 
