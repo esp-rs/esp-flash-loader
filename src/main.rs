@@ -274,31 +274,33 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 }
 
 fn init_rom_data() {
-    struct TableDataEntry {
+    struct DataTableDataEntry {
         dst_start: u32, // RAM
         dst_end: u32,   // RAM
         src: u32,       // ROM
     }
 
-    impl TableDataEntry {
+    const CONTAINS_CORE_SPEC_FIELD: bool = cfg!(any(
+        feature = "esp32",
+        feature = "esp32s2",
+        feature = "esp32s3",
+        feature = "esp32c2",
+        feature = "esp32c3",
+    ));
+
+    impl DataTableDataEntry {
         // On chips where the table entry is 4 words, if the 4th word is 0, data
         // is only unpacked by the Pro core. If the 4th word is 1, data is unpacked
         // by both cores. This distinction is unnecessary for the flash loader.
         // We just need to jump over the 4th word.
-        const ENTRY_SIZE: u32 = 12
-            + cfg!(any(
-                feature = "esp32",
-                feature = "esp32s2",
-                feature = "esp32s3"
-            )) as u32
-                * 4;
+        const ENTRY_SIZE: u32 = 12 + CONTAINS_CORE_SPEC_FIELD as u32 * 4;
 
         fn read(from: u32) -> Self {
             let dst_start = unsafe { *(from as *const u32) }; // RAM
             let dst_end = unsafe { *((from + 4) as *const u32) }; // RAM
             let src = unsafe { *((from + 8) as *const u32) }; // ROM
 
-            TableDataEntry {
+            DataTableDataEntry {
                 dst_start,
                 dst_end,
                 src,
@@ -316,6 +318,50 @@ fn init_rom_data() {
         }
     }
 
+    struct BssTableDataEntry {
+        start: u32, // RAM
+        end: u32,   // RAM
+    }
+
+    impl BssTableDataEntry {
+        // On chips where the table entry is 3 words, if the 3rd word is 0, data
+        // is only zeroed by the Pro core. If the 3rd word is 1, data is zeroed
+        // by both cores. This distinction is unnecessary for the flash loader.
+        // We just need to jump over the 3rd word.
+        const ENTRY_SIZE: u32 = 8 + CONTAINS_CORE_SPEC_FIELD as u32 * 4;
+
+        fn read(from: u32) -> Self {
+            let start = unsafe { *(from as *const u32) }; // RAM
+            let end = unsafe { *((from + 4) as *const u32) }; // RAM
+
+            BssTableDataEntry { start, end }
+        }
+
+        fn init(&self) {
+            let mut addr = self.start;
+            while addr < self.end {
+                unsafe { *(addr as *mut u32) = 0 };
+                addr += 4;
+            }
+        }
+    }
+
+    type RomDataTables = &'static [(u32, RomDataTable)];
+
+    struct RomDataTable {
+        data_start: u32,
+        data_end: u32,
+        bss_start: u32,
+        bss_end: u32,
+    }
+
+    impl RomDataTable {
+        fn init(&self) {
+            unpack(self.data_start, self.data_end);
+            zero(self.bss_start, self.bss_end);
+        }
+    }
+
     fn unpack(first: u32, end: u32) {
         // Data is stored in three/four-word sections:
         // - Data section start address in RAM
@@ -324,89 +370,274 @@ fn init_rom_data() {
         // - Whether to unpack code on the second core
         let mut current = first;
         while current < end {
-            TableDataEntry::read(current).init();
-            current += TableDataEntry::ENTRY_SIZE;
+            DataTableDataEntry::read(current).init();
+            current += DataTableDataEntry::ENTRY_SIZE;
         }
     }
 
-    fn zero(start: u32, end: u32) {
-        let mut addr = start;
-        while addr < end {
-            unsafe { *(addr as *mut u32) = 0 };
-            addr += 4;
+    fn zero(first: u32, end: u32) {
+        // Data is stored in three/four-word sections:
+        // - Section start address in RAM
+        // - Section end address in RAM
+        // - Whether to zero code on the second core
+        let mut current = first;
+        while current < end {
+            BssTableDataEntry::read(current).init();
+            current += BssTableDataEntry::ENTRY_SIZE;
         }
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "esp32")] {
-            // rev 0 and rev 300
-            const DATA_TABLE_START: u32 = 0x4000d4f8;
-            const DATA_TABLE_END: u32 = 0x4000d5c8;
-            const BSS_START: u32 = 0x4000d5d0;
-            const BSS_END: u32 = 0x4000d66c;
-        } else if #[cfg(feature = "esp32s2")] {
-            const DATA_TABLE_START: u32 = 0x4001bd64;
-            const DATA_TABLE_END: u32 = 0x4001be34;
-            const BSS_START: u32 = 0x4001be34;
-            const BSS_END: u32 = 0x4001bed0;
-        } else if #[cfg(feature = "esp32s3")] {
-            const DATA_TABLE_START: u32 = 0x40057354;
-            const DATA_TABLE_END: u32 = 0x400575c4;
-            const BSS_START: u32 = 0x400575d4;
-            const BSS_END: u32 = 0x400577a8;
-        } else if #[cfg(feature = "esp32c2")] {
-            const DATA_TABLE_START: u32 = 0x40082174;
-            const DATA_TABLE_END: u32 = 0x400823f4;
-            const BSS_START: u32 = 0x40082404;
-            const BSS_END: u32 = 0x400825e4;
-        } else if #[cfg(feature = "esp32c3")] {
-            // rev0
-            // const DATA_TABLE_START: u32 = 0x40058898;
-            // const DATA_TABLE_END: u32 = 0x40058a88;
-            // const BSS_START: u32 = 0x40058a98;
-            // const BSS_END: u32 = 0x40058c0c;
-            // rev101
-            // const DATA_TABLE_START: u32 = 0x40059620;
-            // const DATA_TABLE_END: u32 = 0x40059830;
-            // const BSS_START: u32 = 0x40059840;
-            // const BSS_END: u32 = 0x400599cc;
-            // rev3
-            const DATA_TABLE_START: u32 = 0x40059200;
-            const DATA_TABLE_END: u32 = 0x40059400;
-            const BSS_START: u32 = 0x40059410;
-            const BSS_END: u32 = 0x40059590;
+    let rom_data_tables: RomDataTables = if cfg!(feature = "esp32") {
+        &[(
+            // rev 0 and rev 300 are the same
+            0,
+            RomDataTable {
+                data_start: 0x4000d4f8,
+                data_end: 0x4000d5c8,
+                bss_start: 0x4000d5d0,
+                bss_end: 0x4000d66c,
+            },
+        )]
+    } else if cfg!(feature = "esp32s2") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x4001bd64,
+                data_end: 0x4001be34,
+                bss_start: 0x4001be34,
+                bss_end: 0x4001bed0,
+            },
+        )]
+    } else if cfg!(feature = "esp32s3") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x40057354,
+                data_end: 0x400575c4,
+                bss_start: 0x400575d4,
+                bss_end: 0x400577a8,
+            },
+        )]
+    } else if cfg!(feature = "esp32c2") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x40082174,
+                data_end: 0x400823f4,
+                bss_start: 0x40082404,
+                bss_end: 0x400825e4,
+            },
+        )]
+    } else if cfg!(feature = "esp32c3") {
+        &[
+            (
+                0,
+                RomDataTable {
+                    data_start: 0x40058898,
+                    data_end: 0x40058a88,
+                    bss_start: 0x40058a98,
+                    bss_end: 0x40058c0c,
+                },
+            ),
+            (
+                3,
+                RomDataTable {
+                    data_start: 0x40059200,
+                    data_end: 0x40059400,
+                    bss_start: 0x40059410,
+                    bss_end: 0x40059590,
+                },
+            ),
+            (
+                101,
+                RomDataTable {
+                    data_start: 0x40059620,
+                    data_end: 0x40059830,
+                    bss_start: 0x40059840,
+                    bss_end: 0x400599cc,
+                },
+            ),
+        ]
+    } else if cfg!(feature = "esp32c5") {
+        &[
+            // mp version - TODO double-check revision
+            (
+                0,
+                RomDataTable {
+                    data_start: 0x400478a8,
+                    data_end: 0x40047a7c,
+                    bss_start: 0x40047a7c,
+                    bss_end: 0x40047bac,
+                },
+            ),
+        ]
+    } else if cfg!(feature = "esp32c6") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x40041ea8,
+                data_end: 0x40042064,
+                bss_start: 0x40042064,
+                bss_end: 0x40042184,
+            },
+        )]
+    } else if cfg!(feature = "esp32c61") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x4003700c,
+                data_end: 0x400371e0,
+                bss_start: 0x400371e0,
+                bss_end: 0x40037310,
+            },
+        )]
+    } else if cfg!(feature = "esp32h2") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x4001a18c,
+                data_end: 0x4001a318,
+                bss_start: 0x4001a318,
+                bss_end: 0x4001a418,
+            },
+        )]
+    } else {
+        // Will not initialize memory
+        &[]
+    };
 
-            // Skip copying - never seemed necessary, and we can't yet pick between ECOs
-            return;
-        } else if #[cfg(feature = "esp32c5")] {
-            // mp
-            const DATA_TABLE_START: u32 = 0x400478a8;
-            const DATA_TABLE_END: u32 = 0x40047a7c;
-            const BSS_START: u32 = 0x40047a7c;
-            const BSS_END: u32 = 0x40047bac;
-        } else if #[cfg(feature = "esp32c6")] {
-            // rev0
-            const DATA_TABLE_START: u32 = 0x40041ea8;
-            const DATA_TABLE_END: u32 = 0x40042064;
-            const BSS_START: u32 = 0x40042064;
-            const BSS_END: u32 = 0x4004a184;
-        } else if #[cfg(feature = "esp32c61")] {
-            const DATA_TABLE_START: u32 = 0x4003700c;
-            const DATA_TABLE_END: u32 = 0x400371e0;
-            const BSS_START: u32 = 0x400371e0;
-            const BSS_END: u32 = 0x40037310;
-        } else if #[cfg(feature = "esp32h2")] {
-            const DATA_TABLE_START: u32 = 0x4001a18c;
-            const DATA_TABLE_END: u32 = 0x4001a318;
-            const BSS_START: u32 = 0x4001a318;
-            const BSS_END: u32 = 0x4001a418;
+    let rev = read_chip_revision();
+    if let Some((_min_rev, table)) = rom_data_tables
+        .iter()
+        .filter(|&(min_rev, _table)| *min_rev <= rev)
+        .last()
+    {
+        table.init();
+    }
+}
+
+fn read_chip_revision() -> u32 {
+    fn read_field<const BLOCK: usize, const BIT_START: u32, const BIT_COUNT: u32>() -> u8 {
+        struct EfuseInfo {
+            block0: u32,
+            /// In words
+            block_sizes: &'static [u32],
+        }
+
+        let info = if cfg!(feature = "esp32") {
+            EfuseInfo {
+                block0: 0x3FF5_A000,
+                block_sizes: &[7, 8, 8, 8],
+            }
+        } else if cfg!(feature = "esp32s2") {
+            EfuseInfo {
+                block0: 0x3F41_A000 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
+        } else if cfg!(feature = "esp32s3") {
+            EfuseInfo {
+                block0: 0x6000_7000 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
+        } else if cfg!(feature = "esp32c2") {
+            EfuseInfo {
+                block0: 0x6000_8800 + 0x2C,
+                block_sizes: &[8, 12, 32, 32],
+            }
+        } else if cfg!(feature = "esp32c3") {
+            EfuseInfo {
+                block0: 0x6000_8800 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
+        } else if cfg!(any(feature = "esp32c6", feature = "esp32h2")) {
+            EfuseInfo {
+                block0: 0x600B_0800 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
+        } else if cfg!(any(feature = "esp32c5", feature = "esp32c61")) {
+            EfuseInfo {
+                block0: 0x600B_4800 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
         } else {
-            compile_error!("missing data");
+            todo!()
+        };
+
+        let word_offset = BIT_START / 32;
+        let bit_offset = BIT_START % 32;
+
+        let mask = (1 << BIT_COUNT) - 1;
+        let bit_mask = mask << bit_offset;
+
+        let block_offset = info.block_sizes.iter().take(BLOCK).sum::<u32>();
+        let address = info.block0 + block_offset * 4 + word_offset * 4;
+        let value =
+            (unsafe { core::ptr::read_volatile(address as *const u32) } & bit_mask) >> bit_offset;
+
+        value as u8
+    }
+
+    fn major_chip_version() -> u8 {
+        if cfg!(feature = "esp32") {
+            let eco_bit0 = read_field::<0, 111, 1>() as u32;
+            let eco_bit1 = read_field::<0, 180, 1>() as u32;
+            let apb_ctrl_date = (0x3ff6_6000 + 0x7c) as *const u32;
+            let eco_bit2 = (unsafe { *apb_ctrl_date } & 0x80000000) >> 31;
+
+            match (eco_bit2 << 2) | (eco_bit1 << 1) | eco_bit0 {
+                1 => 1,
+                3 => 2,
+                7 => 3,
+                _ => 0,
+            }
+        } else if cfg!(feature = "esp32s2") {
+            read_field::<1, 114, 2>()
+        } else if cfg!(feature = "esp32c2") {
+            read_field::<2, 52, 2>()
+        } else if cfg!(any(feature = "esp32c3", feature = "esp32s3")) {
+            read_field::<1, 184, 2>()
+        } else if cfg!(feature = "esp32c5") {
+            read_field::<1, 68, 2>()
+        } else if cfg!(feature = "esp32c6") {
+            read_field::<1, 118, 2>()
+        } else if cfg!(feature = "esp32c61") {
+            read_field::<1, 68, 2>()
+        } else if cfg!(feature = "esp32h2") {
+            read_field::<1, 117, 2>()
+        } else {
+            todo!()
         }
     }
 
-    unpack(DATA_TABLE_START, DATA_TABLE_END);
-    zero(BSS_START, BSS_END);
+    fn minor_chip_version() -> u8 {
+        if cfg!(feature = "esp32") {
+            read_field::<0, 184, 2>()
+        } else if cfg!(feature = "esp32s2") {
+            let lo = read_field::<1, 132, 3>();
+            let hi = read_field::<1, 116, 1>();
+
+            hi << 3 | lo
+        } else if cfg!(feature = "esp32c2") {
+            read_field::<2, 48, 4>()
+        } else if cfg!(any(feature = "esp32c3", feature = "esp32s3")) {
+            let lo = read_field::<1, 114, 3>();
+            let hi = read_field::<1, 183, 1>();
+
+            hi << 3 | lo
+        } else if cfg!(feature = "esp32c5") {
+            read_field::<1, 64, 4>()
+        } else if cfg!(feature = "esp32c6") {
+            read_field::<1, 114, 4>()
+        } else if cfg!(feature = "esp32c61") {
+            read_field::<1, 64, 4>()
+        } else if cfg!(feature = "esp32h2") {
+            read_field::<1, 114, 3>()
+        } else {
+            todo!()
+        }
+    }
+
+    major_chip_version() as u32 * 100 + minor_chip_version() as u32
 }
 
 /// Erase the sector at the given address in flash
