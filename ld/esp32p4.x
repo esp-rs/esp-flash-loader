@@ -5,6 +5,7 @@ MEMORY {
 }
 
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
+PROVIDE ( uart_tx_one_char = usb_serial_device_tx_one_char );
 
 /*
  * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
@@ -41,7 +42,7 @@ ets_update_cpu_frequency = 0x4fc00044;
 ets_install_lock = 0x4fc00048;
 UartRxString = 0x4fc0004c;
 UartGetCmdLn = 0x4fc00050;
-uart_tx_one_char = 0x4fc00054;
+/*uart_tx_one_char = 0x4fc00054;*/
 uart_tx_one_char2 = 0x4fc00058;
 uart_tx_one_char3 = 0x4fc0005c;
 uart_rx_one_char = 0x4fc00060;
