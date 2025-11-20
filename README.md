@@ -29,7 +29,7 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 | esp32c6  | Y         |
 | esp32c61 | Y         |
 | esp32h2  | Y         |
-| esp32p4  | N         |
+| esp32p4  | Y         |
 
 ## Adding new chips
 

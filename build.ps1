@@ -28,6 +28,7 @@ $deviceMap = @{
     "esp32c6" = "riscv32imac-unknown-none-elf"
     "esp32c61" = "riscv32imac-unknown-none-elf"
     "esp32h2" = "riscv32imac-unknown-none-elf"
+    "esp32p4" = "riscv32imafc-unknown-none-elf"
 }
 
 # Validate device (if specified) and build list
