@@ -29,7 +29,7 @@ max-cpu-frequency = []
 
 [profile.release]
 codegen-units = 1
-debug = false
+debug = true
 debug-assertions = false
 incremental = false
 lto = "fat"
