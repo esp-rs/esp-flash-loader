@@ -389,54 +389,44 @@ fn init_rom_data() {
 
     let rom_data_tables: RomDataTables = if cfg!(feature = "esp32") {
         &[(
-            // rev 0 and rev 300 are the same
             0,
             RomDataTable {
-                data_start: 0x4000d4f8,
-                data_end: 0x4000d5c8,
-                bss_start: 0x4000d5d0,
-                bss_end: 0x4000d66c,
-            },
-        )]
-    } else if cfg!(feature = "esp32s2") {
-        &[(
-            0,
-            RomDataTable {
-                data_start: 0x4001bd64,
-                data_end: 0x4001be34,
-                bss_start: 0x4001be34,
-                bss_end: 0x4001bed0,
-            },
-        )]
-    } else if cfg!(feature = "esp32s3") {
-        &[(
-            0,
-            RomDataTable {
-                data_start: 0x40057354,
-                data_end: 0x400575c4,
-                bss_start: 0x400575d4,
-                bss_end: 0x400577a8,
+                data_start: 0x4000D4F8,
+                data_end: 0x4000D5C8,
+                bss_start: 0x4000D5D0,
+                bss_end: 0x4000D66C,
             },
         )]
     } else if cfg!(feature = "esp32c2") {
-        &[(
-            0,
-            RomDataTable {
-                data_start: 0x40082174,
-                data_end: 0x400823f4,
-                bss_start: 0x40082404,
-                bss_end: 0x400825e4,
-            },
-        )]
+        &[
+            (
+                0,
+                RomDataTable {
+                    data_start: 0x40082174,
+                    data_end: 0x400823F4,
+                    bss_start: 0x40082404,
+                    bss_end: 0x400825E4,
+                },
+            ),
+            (
+                400,
+                RomDataTable {
+                    data_start: 0x40081EEC,
+                    data_end: 0x4008219C,
+                    bss_start: 0x400821AC,
+                    bss_end: 0x400823B0,
+                },
+            ),
+        ]
     } else if cfg!(feature = "esp32c3") {
         &[
             (
                 0,
                 RomDataTable {
                     data_start: 0x40058898,
-                    data_end: 0x40058a88,
-                    bss_start: 0x40058a98,
-                    bss_end: 0x40058c0c,
+                    data_end: 0x40058A88,
+                    bss_start: 0x40058A98,
+                    bss_end: 0x40058C0C,
                 },
             ),
             (
@@ -454,20 +444,28 @@ fn init_rom_data() {
                     data_start: 0x40059620,
                     data_end: 0x40059830,
                     bss_start: 0x40059840,
-                    bss_end: 0x400599cc,
+                    bss_end: 0x400599CC,
                 },
             ),
         ]
     } else if cfg!(feature = "esp32c5") {
         &[
-            // mp version - TODO double-check revision
             (
                 0,
                 RomDataTable {
-                    data_start: 0x400478a8,
-                    data_end: 0x40047a7c,
-                    bss_start: 0x40047a7c,
-                    bss_end: 0x40047bac,
+                    data_start: 0x400478A8,
+                    data_end: 0x40047A7C,
+                    bss_start: 0x40047A7C,
+                    bss_end: 0x40047BAC,
+                },
+            ),
+            (
+                100,
+                RomDataTable {
+                    data_start: 0x4003B154,
+                    data_end: 0x4003B340,
+                    bss_start: 0x4003B340,
+                    bss_end: 0x4003B480,
                 },
             ),
         ]
@@ -475,30 +473,82 @@ fn init_rom_data() {
         &[(
             0,
             RomDataTable {
-                data_start: 0x40041ea8,
+                data_start: 0x40041EA8,
                 data_end: 0x40042064,
                 bss_start: 0x40042064,
                 bss_end: 0x40042184,
             },
         )]
     } else if cfg!(feature = "esp32c61") {
-        &[(
-            0,
-            RomDataTable {
-                data_start: 0x4003700c,
-                data_end: 0x400371e0,
-                bss_start: 0x400371e0,
-                bss_end: 0x40037310,
-            },
-        )]
+        &[
+            (
+                0,
+                RomDataTable {
+                    data_start: 0x4003700C,
+                    data_end: 0x400371E0,
+                    bss_start: 0x400371E0,
+                    bss_end: 0x40037310,
+                },
+            ),
+            (
+                100,
+                RomDataTable {
+                    data_start: 0x40038A4C,
+                    data_end: 0x40038C38,
+                    bss_start: 0x40038C38,
+                    bss_end: 0x40038D78,
+                },
+            ),
+        ]
     } else if cfg!(feature = "esp32h2") {
         &[(
             0,
             RomDataTable {
-                data_start: 0x4001a18c,
-                data_end: 0x4001a318,
-                bss_start: 0x4001a318,
-                bss_end: 0x4001a418,
+                data_start: 0x4001A18C,
+                data_end: 0x4001A318,
+                bss_start: 0x4001A318,
+                bss_end: 0x4001A418,
+            },
+        )]
+    } else if cfg!(feature = "esp32p4") {
+        &[
+            (
+                100,
+                RomDataTable {
+                    data_start: 0x4FC1BEC8,
+                    data_end: 0x4FC1C054,
+                    bss_start: 0x4FC1C054,
+                    bss_end: 0x4FC1C154,
+                },
+            ),
+            (
+                300,
+                RomDataTable {
+                    data_start: 0x4FC1C860,
+                    data_end: 0x4FC1C9EC,
+                    bss_start: 0x4FC1C9EC,
+                    bss_end: 0x4FC1CAEC,
+                },
+            ),
+        ]
+    } else if cfg!(feature = "esp32s2") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x4001BD64,
+                data_end: 0x4001BE34,
+                bss_start: 0x4001BE34,
+                bss_end: 0x4001BED0,
+            },
+        )]
+    } else if cfg!(feature = "esp32s3") {
+        &[(
+            0,
+            RomDataTable {
+                data_start: 0x40056700,
+                data_end: 0x40056800,
+                bss_start: 0x40056810,
+                bss_end: 0x400568D0,
             },
         )]
     } else {
@@ -559,6 +609,11 @@ fn read_chip_revision() -> u32 {
                 block0: 0x600B_4800 + 0x2C,
                 block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
             }
+        } else if cfg!(any(feature = "esp32p4")) {
+            EfuseInfo {
+                block0: 0x5012_D000 + 0x2C,
+                block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+            }
         } else {
             todo!()
         };
@@ -604,6 +659,10 @@ fn read_chip_revision() -> u32 {
             read_field::<1, 68, 2>()
         } else if cfg!(feature = "esp32h2") {
             read_field::<1, 117, 2>()
+        } else if cfg!(feature = "esp32p4") {
+            let lo = read_field::<1, 68, 2>();
+            let hi = read_field::<1, 87, 1>();
+            hi << 2 | lo
         } else {
             todo!()
         }
@@ -632,6 +691,8 @@ fn read_chip_revision() -> u32 {
             read_field::<1, 64, 4>()
         } else if cfg!(feature = "esp32h2") {
             read_field::<1, 114, 3>()
+        } else if cfg!(feature = "esp32p4") {
+            read_field::<1, 64, 4>()
         } else {
             todo!()
         }
