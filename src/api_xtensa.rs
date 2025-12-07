@@ -2,20 +2,7 @@
 // ABI, just jumping to the function address won't work. Instead, we need to use a call<N>
 // instruction, which will set up the window increment and then jump to the function address.
 
-#[cfg(feature = "esp32")]
-#[no_mangle]
-// End of SRAM2
-static STACK_PTR: u32 = 0x3FFE_0000;
-
-#[cfg(feature = "esp32s2")]
-#[no_mangle]
-// End of SRAM1. SRAM0 may be used as cache and thus may be inaccessible.
-static STACK_PTR: u32 = 0x3FFD_F000;
-
-#[cfg(feature = "esp32s3")]
-#[no_mangle]
-// End of SRAM1 - DATA_CACHE_SIZE
-static STACK_PTR: u32 = 0x3FCD_0000;
+// STACK_PTR is defined in the chip-specific files
 
 #[unsafe(naked)]
 #[unsafe(no_mangle)]

@@ -52,11 +52,8 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
     ```
 6. [Define `spiconfig` for your the target in `flash.rs`](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+ets_efuse_get_spiconfig+path%3A*c3*&type=code)
 7. Add your device to the table in `main.rs` and calculate addresses.
-8. Define your target's `STATE_ADDR`
-    ```rust
-    #[cfg(feature = "esp32c3")]
-    const STATE_ADDR: usize = 0x3FCC_0000;
-    ```
+8. Define your target's device specific data in `chip/<chip_name>.rs`, and add the file to the list of paths in `main.rs`. Take an existing chip as a reference.
+  Implement code necessary to set maximum CPU speed.
 9. Follow the instructions above for building
   - It may fail with: `rust-lld: error: undefined symbol: <symbol>`
     - In this case, you need to add the missing method in the ROM API linker script.
