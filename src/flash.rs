@@ -82,7 +82,6 @@ use s3::*;
 #[cfg(feature = "esp32s3")]
 extern "C" {
     static mut rom_spiflash_legacy_funcs: *const spiflash_legacy_funcs_t;
-    static mut rom_spiflash_legacy_data: *mut ();
 
     fn ets_efuse_flash_octal_mode() -> bool;
 
@@ -119,21 +118,12 @@ pub fn attach() -> i32 {
     #[cfg(feature = "esp32s3")]
     if unsafe { ets_efuse_flash_octal_mode() } {
         init_ospi_funcs();
-    } else {
-        // For some reason, the default pointers are not set on boot. I'm not sure if
-        // probe-rs does something wrong, or the ROM bootloader doesn't initialize memory properly under some conditions.
-        // Leaving these uninitialized ends up with a division by zero exception. These addresses have been mined out of
-        // the ROM elf, these supposed to be the default values of these variables.
-        unsafe {
-            rom_spiflash_legacy_funcs = 0x3FCEF670 as _;
-            rom_spiflash_legacy_data = 0x3FCEF6A4 as _;
-        }
     }
 
     let config_result = unsafe {
         esp_rom_spiflash_config_param(
             0,
-            crate::properties::FLASH_SIZE,        // total_size
+            crate::properties::MAX_FLASH_SIZE,    // total_size
             crate::properties::FLASH_BLOCK_SIZE,  // block_size
             crate::properties::FLASH_SECTOR_SIZE, // sector_size
             crate::properties::PAGE_SIZE,         // page_size

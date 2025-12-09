@@ -35,27 +35,19 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 // ESP32-H2  | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
 // ESP32-P4  | 0x4FF1_0000 | 0x4FF1_0000 | 0x4FF6_0000 | 0x4FF7_0000    | 0x4FFC_0000
 
-// "State" base address
-#[cfg(feature = "esp32")]
-const STATE_ADDR: usize = 0x3FFC_0000;
-#[cfg(feature = "esp32s2")]
-const STATE_ADDR: usize = 0x3FFB_E000;
-#[cfg(feature = "esp32s3")]
-const STATE_ADDR: usize = 0x3FCB_0000;
-#[cfg(feature = "esp32c2")]
-const STATE_ADDR: usize = 0x3FCB_0000;
-#[cfg(feature = "esp32c3")]
-const STATE_ADDR: usize = 0x3FCB_0000;
-#[cfg(feature = "esp32c5")]
-const STATE_ADDR: usize = 0x4084_0000;
-#[cfg(feature = "esp32c6")]
-const STATE_ADDR: usize = 0x4084_0000;
-#[cfg(feature = "esp32c61")]
-const STATE_ADDR: usize = 0x4082_0000;
-#[cfg(feature = "esp32h2")]
-const STATE_ADDR: usize = 0x4082_0000;
-#[cfg(feature = "esp32p4")]
-const STATE_ADDR: usize = 0x4FF6_0000;
+#[cfg_attr(feature = "esp32", path = "chip/esp32.rs")]
+#[cfg_attr(feature = "esp32s2", path = "chip/esp32s2.rs")]
+#[cfg_attr(feature = "esp32s3", path = "chip/esp32s3.rs")]
+#[cfg_attr(feature = "esp32c2", path = "chip/esp32c2.rs")]
+#[cfg_attr(feature = "esp32c3", path = "chip/esp32c3.rs")]
+#[cfg_attr(feature = "esp32c5", path = "chip/esp32c5.rs")]
+#[cfg_attr(feature = "esp32c6", path = "chip/esp32c6.rs")]
+#[cfg_attr(feature = "esp32c61", path = "chip/esp32c61.rs")]
+#[cfg_attr(feature = "esp32h2", path = "chip/esp32h2.rs")]
+#[cfg_attr(feature = "esp32p4", path = "chip/esp32p4.rs")]
+mod chip;
+mod efuse;
+mod rom;
 
 // End of target memory configuration
 
@@ -245,7 +237,7 @@ struct FlasherState {
 }
 
 const INITED_MAGIC: u32 = 0xAAC0FFEE;
-const STATE_OBJ: *mut FlasherState = STATE_ADDR as *mut FlasherState;
+const STATE_OBJ: *mut FlasherState = chip::STATE_ADDR as *mut FlasherState;
 
 fn state() -> &'static mut FlasherState {
     unsafe { &mut *STATE_OBJ }
@@ -260,50 +252,7 @@ fn is_inited() -> bool {
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     dprintln!("INIT");
 
-    #[cfg(feature = "esp32c61")]
-    {
-        // ROM data table addresses
-        // TODO: use for other chips, too (if they use the same format)
-        let _data_table_start = 0x4003700c;
-        let _bss_table_start = 0x400371e0;
-        let _etext = 0x40037310;
-
-        unpack(_data_table_start, _bss_table_start);
-        zero(_bss_table_start, _etext);
-
-        fn unpack(first: u32, last: u32) {
-            // Data is stored in three-byte sections:
-            // - Data section start address in RAM
-            // - Data section end address in RAM
-            // - Source address in ROM
-            let mut current = first;
-            while current < last {
-                let dst_start = unsafe { *((current) as *const u32) }; // RAM
-                let dst_end = unsafe { *((current + 4) as *const u32) }; // RAM
-                let src = unsafe { *((current + 8) as *const u32) }; // ROM
-                copy(dst_start, dst_end, src);
-                current += 12;
-            }
-        }
-
-        fn copy(dst_start: u32, dst_end: u32, src: u32) {
-            let mut addr = src;
-            let mut dst = dst_start;
-            while dst < dst_end {
-                unsafe { *(dst as *mut u32) = *(addr as *const u32) };
-                addr += 4;
-                dst += 4;
-            }
-        }
-
-        fn zero(start: u32, end: u32) {
-            let mut addr = start;
-            while addr < end {
-                unsafe { *(addr as *mut u32) = 0 };
-                addr += 4;
-            }
-        }
-    }
+    rom::init_rom_data();
 
     set_max_cpu_freq(&mut state().saved_cpu_state);
 

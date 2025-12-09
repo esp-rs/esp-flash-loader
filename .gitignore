@@ -1,3 +1,5 @@
+.vscode/
+.zed/
 /target
 /output
 esp32c3.bin
