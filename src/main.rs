@@ -193,11 +193,17 @@ mod max_cpu_frequency {
                     fn ets_delay_us(us: u32);
                 }
 
+                // FIXME: setting max CPU frequency causes a crash on later chips
+                #[cfg(feature = "esp32s3")]
+                if crate::efuse::read_chip_revision() >= 2 {
+                    return;
+                }
+
                 unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state.saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
                   // Leave some time for the change to settle, needed for ESP32-S3
                 unsafe { ets_delay_us(100) };
                 unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state.saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
-            } else  {
+            } else {
                 unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state.saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
                 unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state.saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
             }
