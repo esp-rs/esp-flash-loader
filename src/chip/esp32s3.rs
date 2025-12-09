@@ -14,10 +14,10 @@ pub const MAX_FLASH_SIZE: u32 = 0x40000000;
 
 pub const ROM_DATA_TABLES: RomDataTables = &[RomDataTable {
     min_revision: 0,
-    data_start: 0x40056700,
-    data_end: 0x40056800,
-    bss_start: 0x40056810,
-    bss_end: 0x400568D0,
+    data_start: 0x40057354,
+    data_end: 0x400575C4,
+    bss_start: 0x400575D4,
+    bss_end: 0x400577A8,
 }];
 
 pub const ROM_TABLE_ENTRY_SIZE: u32 = 16;
