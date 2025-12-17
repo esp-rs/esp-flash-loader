@@ -3,20 +3,38 @@ use crate::{
     rom::{RomDataTable, RomDataTables},
 };
 
-pub const STATE_ADDR: usize = 0x4FF6_0000;
+pub const STATE_ADDR: usize = 0x8FF6_0000;
 
 // Max of 64MB
 pub const MAX_FLASH_SIZE: u32 = 0x4000000;
 
 pub const ROM_DATA_TABLES: RomDataTables = &[
     RomDataTable {
-        min_revision: 100,
+        // ECO0
+        min_revision: 0,
         data_start: 0x4FC1BEC8,
         data_end: 0x4FC1C054,
         bss_start: 0x4FC1C054,
         bss_end: 0x4FC1C154,
     },
     RomDataTable {
+        // ECO1
+        min_revision: 1,
+        data_start: 0x4FC1BF9C,
+        data_end: 0x4FC1C128,
+        bss_start: 0x4FC1C128,
+        bss_end: 0x4FC1C228,
+    },
+    RomDataTable {
+        // ECO2-ECO4
+        min_revision: 100,
+        data_start: 0x4FC1C4A8,
+        data_end: 0x4FC1C634,
+        bss_start: 0x4FC1C634,
+        bss_end: 0x4FC1C734,
+    },
+    RomDataTable {
+        // ECO5
         min_revision: 300,
         data_start: 0x4FC1C860,
         data_end: 0x4FC1C9EC,
