@@ -58,16 +58,7 @@ const fn algorithm_description(device_name: &str) -> [u8; 128] {
 
     let idx = append(&mut bytes, 0, "A flash loader for the ");
     let idx = append(&mut bytes, idx, device_name);
-    let idx = append(&mut bytes, idx, " using ");
-
-    let frequency = if cfg!(feature = "max-cpu-frequency") {
-        "maximum"
-    } else {
-        "default"
-    };
-
-    let idx = append(&mut bytes, idx, frequency);
-    append(&mut bytes, idx, " CPU frequency.");
+    let _ = append(&mut bytes, idx, ".");
 
     bytes
 }

@@ -30,6 +30,18 @@ pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
 };
 
+pub struct CpuSaveState {}
+
+impl CpuSaveState {
+    pub const fn new() -> Self {
+        CpuSaveState {}
+    }
+
+    pub fn set_max_cpu_clock(&mut self) {}
+
+    pub fn restore(&self) {}
+}
+
 pub fn major_chip_version() -> u8 {
     read_field::<1, 68, 2>()
 }

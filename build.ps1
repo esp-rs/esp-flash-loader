@@ -5,9 +5,9 @@ param(
 
 function Show-Usage {
     Write-Host "Usage:"
-    Write-Host "  .\build.ps1                                 # build all devices"
-    Write-Host "  .\build.ps1 -Device esp32                   # build single device"
-    Write-Host "  .\build.ps1 -Features log,max-cpu-frequency # build with specified features"
+    Write-Host "  .\build.ps1               # build all devices"
+    Write-Host "  .\build.ps1 -Device esp32 # build single device"
+    Write-Host "  .\build.ps1 -Features log # build with specified features"
     Write-Host ""
     Write-Host "Notes:"
     Write-Host "  - The -Features parameter accepts multiple values or a comma-separated string."

@@ -21,6 +21,49 @@ pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block_sizes: &[7 + 7, 8, 8, 8],
 };
 
+pub struct CpuSaveState {
+    saved_cpu_per_conf_reg: u32,
+    saved_sysclk_conf_reg: u32,
+}
+
+impl CpuSaveState {
+    const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x3FF0003C as *mut u32;
+    const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+    const SYSTEM_CPUPERIOD_MAX: u32 = 2;
+
+    const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x3FF48070 as *mut u32;
+    const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 27;
+    const SYSTEM_SOC_CLK_MAX: u32 = 1 << 27;
+
+    pub const fn new() -> Self {
+        CpuSaveState {
+            saved_cpu_per_conf_reg: 0,
+            saved_sysclk_conf_reg: 0,
+        }
+    }
+
+    pub fn set_max_cpu_clock(&mut self) {
+        self.saved_cpu_per_conf_reg = unsafe { Self::SYSTEM_CPU_PER_CONF_REG.read_volatile() };
+        self.saved_sysclk_conf_reg = unsafe { Self::SYSTEM_SYSCLK_CONF_REG.read_volatile() };
+
+        unsafe {
+            Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(
+                (self.saved_cpu_per_conf_reg & !Self::SYSTEM_CPUPERIOD_SEL_M)
+                    | Self::SYSTEM_CPUPERIOD_MAX,
+            );
+            Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(
+                (self.saved_sysclk_conf_reg & !Self::SYSTEM_SOC_CLK_SEL_M)
+                    | Self::SYSTEM_SOC_CLK_MAX,
+            );
+        }
+    }
+
+    pub fn restore(&self) {
+        unsafe { Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
+        unsafe { Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(self.saved_cpu_per_conf_reg) };
+    }
+}
+
 pub fn major_chip_version() -> u8 {
     let eco_bit0 = read_field::<0, 111, 1>() as u32;
     let eco_bit1 = read_field::<0, 180, 1>() as u32;

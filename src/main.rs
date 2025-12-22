@@ -18,14 +18,13 @@ mod chip;
 mod efuse;
 mod rom;
 
-// End of target memory configuration
-
 // Define necessary functions for flash loader
 //
 // These are taken from the [ARM CMSIS-Pack documentation]
 //
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
 
+use chip::CpuSaveState;
 use panic_never as _;
 
 use crate::tinfl::{
@@ -87,141 +86,6 @@ macro_rules! dprintln {
     ($fmt:expr, $($arg:tt)*) => {};
 }
 
-#[cfg(all(
-    feature = "max-cpu-frequency",
-    not(any(feature = "esp32c5", feature = "esp32c61"))
-))]
-mod max_cpu_frequency {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "esp32")] {
-            const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x3FF0003C as *mut u32;
-            const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
-            const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
-
-            const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x3FF48070 as *mut u32;
-            const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 27;
-            const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 27;
-        } else if #[cfg(feature = "esp32s2")] {
-            const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x3F4C0018 as *mut u32;
-            const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
-            const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
-
-            const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x3F4C008C as *mut u32;
-            const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
-            const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
-        } else if #[cfg(feature = "esp32s3")] {
-            const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x600C0010 as *mut u32;
-            const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
-            const SYSTEM_CPUPERIOD_MAX:   u32 = 2;
-
-            const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x600C0060 as *mut u32;
-            const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
-            const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
-        } else if #[cfg(any(feature = "esp32c2", feature = "esp32c3"))] {
-            const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x600C0008 as *mut u32;
-            const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
-            const SYSTEM_CPUPERIOD_MAX:   u32 = 1;
-
-            const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x600C0058 as *mut u32;
-            const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
-            const SYSTEM_SOC_CLK_MAX:   u32 = 1 << 10;
-        } else if #[cfg(feature = "esp32h2")] {
-            const PCR_SYSCLK_CONF_REG: *mut u32 = 0x6009610c as *mut u32;
-
-            const PCR_SOC_CLK_SEL_M: u32 = 3 << 16;
-            const PCR_SOC_CLK_MAX: u32 = 1 << 16;
-        } else if #[cfg(feature = "esp32c6")] {
-            const PCR_SYSCLK_CONF_REG: *mut u32 = 0x60096110 as *mut u32;
-
-            const PCR_SOC_CLK_SEL_M: u32 = 3 << 16;
-            const PCR_SOC_CLK_MAX: u32 = 1 << 16;
-        }
-    }
-
-    pub struct CpuSaveState {
-        #[cfg(not(any(feature = "esp32c6", feature = "esp32h2")))]
-        saved_cpu_per_conf_reg: u32,
-        saved_sysclk_conf_reg: u32,
-    }
-
-    impl CpuSaveState {
-        pub const fn new() -> Self {
-            CpuSaveState {
-                #[cfg(not(any(feature = "esp32c6", feature = "esp32h2")))]
-                saved_cpu_per_conf_reg: 0,
-                saved_sysclk_conf_reg: 0,
-            }
-        }
-    }
-
-    pub fn set_max_cpu_freq(state: &mut CpuSaveState) {
-        cfg_if::cfg_if! {
-            if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
-                state.saved_sysclk_conf_reg = unsafe { PCR_SYSCLK_CONF_REG.read_volatile() };
-            } else {
-                state.saved_cpu_per_conf_reg = unsafe { SYSTEM_CPU_PER_CONF_REG.read_volatile() };
-                state.saved_sysclk_conf_reg = unsafe { SYSTEM_SYSCLK_CONF_REG.read_volatile() };
-            }
-        }
-
-        cfg_if::cfg_if! {
-            if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
-                unsafe { PCR_SYSCLK_CONF_REG.write_volatile((state.saved_sysclk_conf_reg & !PCR_SOC_CLK_SEL_M) | PCR_SOC_CLK_MAX) };
-            } else if #[cfg(feature = "esp32s3")] {
-                extern "C" {
-                    fn ets_delay_us(us: u32);
-                }
-
-                // FIXME: setting max CPU frequency causes a crash on later chips
-                #[cfg(feature = "esp32s3")]
-                if crate::efuse::read_chip_revision() >= 2 {
-                    return;
-                }
-
-                unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state.saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
-                  // Leave some time for the change to settle, needed for ESP32-S3
-                unsafe { ets_delay_us(100) };
-                unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state.saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
-            } else {
-                unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile((state.saved_cpu_per_conf_reg & !SYSTEM_CPUPERIOD_SEL_M) | SYSTEM_CPUPERIOD_MAX) };
-                unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile((state.saved_sysclk_conf_reg & !SYSTEM_SOC_CLK_SEL_M) | SYSTEM_SOC_CLK_MAX) };
-            }
-        }
-    }
-
-    pub fn restore_max_cpu_freq(state: &mut CpuSaveState) {
-        cfg_if::cfg_if! {
-            if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
-                unsafe { PCR_SYSCLK_CONF_REG.write_volatile(state.saved_sysclk_conf_reg) };
-            } else {
-                unsafe { SYSTEM_SYSCLK_CONF_REG.write_volatile(state.saved_sysclk_conf_reg) };
-                unsafe { SYSTEM_CPU_PER_CONF_REG.write_volatile(state.saved_cpu_per_conf_reg) };
-            }
-        }
-    }
-}
-
-#[cfg(any(
-    not(feature = "max-cpu-frequency"),
-    feature = "esp32c5",
-    feature = "esp32c61",
-    feature = "esp32p4",
-))]
-mod max_cpu_frequency {
-    pub struct CpuSaveState {}
-
-    impl CpuSaveState {
-        pub const fn new() -> Self {
-            CpuSaveState {}
-        }
-    }
-
-    pub fn set_max_cpu_freq(_: &mut CpuSaveState) {}
-    pub fn restore_max_cpu_freq(_: &mut CpuSaveState) {}
-}
-
-use max_cpu_frequency::*;
-
 struct FlasherState {
     inited: bool,
     saved_cpu_state: CpuSaveState,
@@ -280,7 +144,7 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     rom::init_rom_data();
 
     let state = init_state();
-    set_max_cpu_freq(&mut state.saved_cpu_state);
+    state.saved_cpu_state.set_max_cpu_clock();
 
     flash::attach()
 }
@@ -363,7 +227,7 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
         return ERROR_BASE_INTERNAL - 1;
     };
 
-    restore_max_cpu_freq(&mut state.saved_cpu_state);
+    state.saved_cpu_state.restore();
     state.inited = false;
 
     if fnc == 2 {
