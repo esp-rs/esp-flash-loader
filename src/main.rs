@@ -90,12 +90,14 @@ struct FlasherState {
     inited: bool,
     saved_cpu_state: CpuSaveState,
     decompressor: Decompressor,
+    read_buffer: [u8; 256],
 }
 
 static mut STATE: FlasherState = FlasherState {
     inited: false,
     saved_cpu_state: CpuSaveState::new(),
     decompressor: Decompressor::new(),
+    read_buffer: [0; 256],
 };
 
 fn state() -> Option<&'static mut FlasherState> {
@@ -219,6 +221,28 @@ pub unsafe extern "C" fn ReadFlash_impl(adr: u32, sz: u32, buf: *mut u8) -> i32 
 
     let buf = core::slice::from_raw_parts_mut(buf, sz as usize);
     crate::flash::read_flash(adr, buf)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn BlankCheck_impl(adr: u32, sz: u32, pat: u8) -> i32 {
+    let Some(state) = state() else {
+        return ERROR_BASE_INTERNAL - 1;
+    };
+
+    for i in (0..sz).step_by(state.read_buffer.len()) {
+        if crate::flash::read_flash(adr + i as u32, &mut state.read_buffer) != 0 {
+            return ERROR_BASE_INTERNAL - 2;
+        }
+        let mut idx = 0;
+        while idx < state.read_buffer.len() {
+            if state.read_buffer[idx] != pat {
+                return ERROR_BASE_INTERNAL - 3;
+            }
+            idx += 1;
+        }
+    }
+
+    0
 }
 
 #[no_mangle]

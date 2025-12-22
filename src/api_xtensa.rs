@@ -82,14 +82,14 @@ extern "C" fn Verify() {
 }
 
 #[unsafe(naked)]
-#[unsafe(no_mangle)]
-extern "C" fn ReadFlash() {
+#[no_mangle]
+extern "C" fn BlankCheck() {
     core::arch::naked_asm!(
         "l32r a1, STACK_PTR",
         "mov.n a6, a2",
         "mov.n a7, a3",
         "mov.n a8, a4",
-        "call4 ReadFlash_impl",
+        "call4 BlankCheck_impl",
         "mov.n a2, a6",
         "break 1, 15",
     );
@@ -102,6 +102,22 @@ extern "C" fn UnInit() {
         "l32r a1, STACK_PTR",
         "mov.n a6, a2",
         "call4 UnInit_impl",
+        "mov.n a2, a6",
+        "break 1, 15",
+    );
+}
+
+// probe-rs custom functions
+
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+extern "C" fn ReadFlash() {
+    core::arch::naked_asm!(
+        "l32r a1, STACK_PTR",
+        "mov.n a6, a2",
+        "mov.n a7, a3",
+        "mov.n a8, a4",
+        "call4 ReadFlash_impl",
         "mov.n a2, a6",
         "break 1, 15",
     );
