@@ -3,8 +3,6 @@ use crate::{
     rom::{RomDataTable, RomDataTables},
 };
 
-pub const STATE_ADDR: usize = 0x3FFC_0000;
-
 // Max of 16MB
 pub const MAX_FLASH_SIZE: u32 = 0x1000000;
 

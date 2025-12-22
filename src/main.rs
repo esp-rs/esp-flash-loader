@@ -2,38 +2,7 @@
 #![no_main]
 #![cfg_attr(target_arch = "xtensa", feature(asm_experimental_arch))]
 
-// TODO: implement clock frequency setting for ESP32-C5
-
-// Target memory configuration
-
-// Decompressor is 43776 bytes, reserve more in case compiler changes layout
-const _: [u8; 43780] = [0; core::mem::size_of::<Decompressor>()];
-
-// Placement:
-// - Xtensa: Pin stack top first, calculate backwards:
-//  - 32K stack
-//  - 32K for data pages
-//  - 64K for decompressor state
-// - RISC-V: At the end of memory, calculate backwards:
-//  - 64K for data pages (32K needed, but 64K is easier to calculate)
-//  - 64K for decompressor state
-//  - stack comes automatically after the loader
-
-// Xtensa    | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | Stack (top)
-// --------- | ----------- | ----------- | ----------- | -------------- | -----------
-// ESP32     | 0x4009_0000 | -           | 0x3FFC_0000 | 0x3FFD_0000    | 0x3FFE_0000
-// ESP32-S2  | 0x4002_C400 | 0x3FFB_C400 | 0x3FFB_E000 | 0x3FFC_E000    | 0x3FFD_F000
-// ESP32-S3  | 0x4038_0400 | 0x3FC9_0400 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
-
-// RISC-V    | Image IRAM  | Image DRAM  | STATE_ADDR  | data_load_addr | DRAM end (avoiding cache)
-// --------- | ----------- | ----------- | ----------- | -------------- | -----------
-// ESP32-C2  | 0x4038_C000 | 0x3FCA_C000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
-// ESP32-C3  | 0x4039_0000 | 0x3FC1_0000 | 0x3FCB_0000 | 0x3FCC_0000    | 0x3FCD_0000
-// ESP32-C5  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
-// ESP32-C6  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
-// ESP32-C61 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! ROM data use starts at 0x4083EA70, so let's use H2's memory layout
-// ESP32-H2  | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
-// ESP32-P4  | 0x8FF4_0020 | 0x8FF4_0020 | 0x8FF6_0000 | 0x8FF7_0000    | 0x8FF8_0000 !! Uncached region
+// TODO: implement clock frequency setting for newer chips
 
 #[cfg_attr(feature = "esp32", path = "chip/esp32.rs")]
 #[cfg_attr(feature = "esp32s2", path = "chip/esp32s2.rs")]
@@ -175,6 +144,16 @@ mod max_cpu_frequency {
         saved_sysclk_conf_reg: u32,
     }
 
+    impl CpuSaveState {
+        pub const fn new() -> Self {
+            CpuSaveState {
+                #[cfg(not(any(feature = "esp32c6", feature = "esp32h2")))]
+                saved_cpu_per_conf_reg: 0,
+                saved_sysclk_conf_reg: 0,
+            }
+        }
+    }
+
     pub fn set_max_cpu_freq(state: &mut CpuSaveState) {
         cfg_if::cfg_if! {
             if #[cfg(any(feature = "esp32c6", feature = "esp32h2"))] {
@@ -231,6 +210,12 @@ mod max_cpu_frequency {
 mod max_cpu_frequency {
     pub struct CpuSaveState {}
 
+    impl CpuSaveState {
+        pub const fn new() -> Self {
+            CpuSaveState {}
+        }
+    }
+
     pub fn set_max_cpu_freq(_: &mut CpuSaveState) {}
     pub fn restore_max_cpu_freq(_: &mut CpuSaveState) {}
 }
@@ -238,38 +223,66 @@ mod max_cpu_frequency {
 use max_cpu_frequency::*;
 
 struct FlasherState {
-    inited: u32,
+    inited: bool,
     saved_cpu_state: CpuSaveState,
     decompressor: Decompressor,
 }
 
-const INITED_MAGIC: u32 = 0xAAC0FFEE;
-const STATE_OBJ: *mut FlasherState = chip::STATE_ADDR as *mut FlasherState;
+static mut STATE: FlasherState = FlasherState {
+    inited: false,
+    saved_cpu_state: CpuSaveState::new(),
+    decompressor: Decompressor::new(),
+};
 
-fn state() -> &'static mut FlasherState {
-    unsafe { &mut *STATE_OBJ }
+fn state() -> Option<&'static mut FlasherState> {
+    #[allow(static_mut_refs)]
+    let state = unsafe { &mut STATE };
+
+    if state.inited {
+        Some(state)
+    } else {
+        None
+    }
 }
 
-fn is_inited() -> bool {
-    state().inited == INITED_MAGIC
+fn init_state() -> &'static mut FlasherState {
+    #[allow(static_mut_refs)]
+    let state = unsafe { &mut STATE };
+
+    state.decompressor = Decompressor::new();
+    state.inited = true;
+
+    state
+}
+
+fn init_bss() {
+    extern "C" {
+        static mut _bss_start: u32;
+        static mut _bss_end: u32;
+    }
+
+    let start = (&raw const _bss_start) as u32;
+    let end = (&raw const _bss_end) as u32;
+
+    for addr in (start..end).step_by(4) {
+        unsafe {
+            (addr as *mut u32).write_volatile(0);
+        }
+    }
 }
 
 /// Setup the device for the flashing process.
 #[no_mangle]
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
+    init_bss();
     dprintln!("INIT");
 
     rom::init_rom_data();
 
-    set_max_cpu_freq(&mut state().saved_cpu_state);
+    let state = init_state();
+    set_max_cpu_freq(&mut state.saved_cpu_state);
 
-    if flash::attach() == 0 {
-        state().decompressor = Decompressor::new();
-        state().inited = INITED_MAGIC;
-        0
-    } else {
-        1
-    }
+    flash::attach()
 }
 
 /// Erase the sector at the given address in flash
@@ -277,7 +290,7 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
 /// Returns 0 on success, 1 on failure.
 #[no_mangle]
 pub unsafe extern "C" fn EraseSector_impl(adr: u32) -> i32 {
-    if !is_inited() {
+    if state().is_none() {
         return ERROR_BASE_INTERNAL - 1;
     };
     flash::erase_block(adr)
@@ -285,7 +298,7 @@ pub unsafe extern "C" fn EraseSector_impl(adr: u32) -> i32 {
 
 #[no_mangle]
 pub unsafe extern "C" fn EraseChip_impl() -> i32 {
-    if !is_inited() {
+    if state().is_none() {
         return ERROR_BASE_INTERNAL - 1;
     };
     flash::erase_chip()
@@ -293,7 +306,7 @@ pub unsafe extern "C" fn EraseChip_impl() -> i32 {
 
 #[no_mangle]
 pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    if !is_inited() {
+    let Some(state) = state() else {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -306,12 +319,12 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
-    state().decompressor.program(adr, input)
+    state.decompressor.program(adr, input)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn Verify_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    if !is_inited() {
+    let Some(state) = state() else {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -324,12 +337,12 @@ pub unsafe extern "C" fn Verify_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
-    state().decompressor.verify(adr, input)
+    state.decompressor.verify(adr, input)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ReadFlash_impl(adr: u32, sz: u32, buf: *mut u8) -> i32 {
-    if !is_inited() {
+    if state().is_none() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -346,12 +359,12 @@ pub unsafe extern "C" fn ReadFlash_impl(adr: u32, sz: u32, buf: *mut u8) -> i32 
 
 #[no_mangle]
 pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
-    if !is_inited() {
+    let Some(state) = state() else {
         return ERROR_BASE_INTERNAL - 1;
     };
 
-    restore_max_cpu_freq(&mut state().saved_cpu_state);
-    state().inited = 0;
+    restore_max_cpu_freq(&mut state.saved_cpu_state);
+    state.inited = false;
 
     if fnc == 2 {
         // The flash ROM functions don't wait for the end of the last operation.
