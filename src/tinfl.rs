@@ -62,26 +62,26 @@ struct TinflHuffTable {
 #[repr(C)]
 pub struct TinflDecompressor {
     m_state: u32,
-    m_num_bits: u32,
-    m_zhdr0: u32,
-    m_zhdr1: u32,
-    m_z_adler32: u32,
-    m_final: u32,
-    m_type: u32,
-    m_check_adler32: u32,
-    m_dist: u32,
-    m_counter: u32,
-    m_num_extra: u32,
-    m_table_sizes: [u32; TINFL_MAX_HUFF_TABLES],
-    m_bit_buf: u32,
-    m_dist_from_out_buf_start: usize,
-    m_tables: [TinflHuffTable; TINFL_MAX_HUFF_TABLES],
-    m_raw_header: [u8; 4],
-    m_len_codes: [u8; TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137],
+    m_num_bits: MaybeUninit<u32>,
+    m_zhdr0: MaybeUninit<u32>,
+    m_zhdr1: MaybeUninit<u32>,
+    m_z_adler32: MaybeUninit<u32>,
+    m_final: MaybeUninit<u32>,
+    m_type: MaybeUninit<u32>,
+    m_check_adler32: MaybeUninit<u32>,
+    m_dist: MaybeUninit<u32>,
+    m_counter: MaybeUninit<u32>,
+    m_num_extra: MaybeUninit<u32>,
+    m_table_sizes: MaybeUninit<[u32; TINFL_MAX_HUFF_TABLES]>,
+    m_bit_buf: MaybeUninit<u32>,
+    m_dist_from_out_buf_start: MaybeUninit<usize>,
+    m_tables: MaybeUninit<[TinflHuffTable; TINFL_MAX_HUFF_TABLES]>,
+    m_raw_header: MaybeUninit<[u8; 4]>,
+    m_len_codes: MaybeUninit<[u8; TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137]>,
 }
 
 impl TinflDecompressor {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         unsafe {
             let mut this = MaybeUninit::<Self>::uninit();
             (*this.as_mut_ptr()).m_state = 0;

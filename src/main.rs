@@ -370,7 +370,7 @@ pub struct Decompressor {
 }
 
 impl Decompressor {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             image_start: None,
             offset: 0,
