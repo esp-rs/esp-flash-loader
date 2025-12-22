@@ -1,5 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
+    flash::MemSpi,
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -19,6 +20,18 @@ pub const ROM_TABLE_ENTRY_SIZE: u32 = 16;
 pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block0: 0x3FF5_A000,
     block_sizes: &[7 + 7, 8, 8, 8],
+};
+
+pub const MEM_SPI: MemSpi = MemSpi {
+    base: 0x3ff4_2000,
+    cmd: 0x00,
+    addr: 0x04,
+    ctrl: 0x08,
+    user: 0x1C,
+    user1: 0x20,
+    user2: 0x24,
+    miso_dlen: 0x2C,
+    data_buf_0: 0x80,
 };
 
 pub struct CpuSaveState {

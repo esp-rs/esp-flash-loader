@@ -122,3 +122,14 @@ extern "C" fn ReadFlash() {
         "break 1, 15",
     );
 }
+
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+extern "C" fn FlashSize() {
+    core::arch::naked_asm!(
+        "l32r a1, STACK_PTR",
+        "call4 FlashSize_impl",
+        "mov.n a2, a6",
+        "break 1, 15",
+    );
+}

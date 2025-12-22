@@ -262,6 +262,15 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
     }
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn FlashSize_impl() -> i32 {
+    if state().is_none() {
+        return ERROR_BASE_INTERNAL - 1;
+    };
+
+    flash::get_flash_size()
+}
+
 pub struct Decompressor {
     decompressor: TinflDecompressor,
     output: OutBuffer,
