@@ -81,9 +81,9 @@ foreach ($d in $devicesToBuild) {
     }
 
     # Run target-gen to produce YAML
-    $outYaml = "output/$d.yaml"
+    $outYaml = "C:/_Hobby/probe-rs/probe-rs/targets/$d.yaml"
     Write-Host "Generating YAML: $outYaml"
-    & target-gen elf $targetPath $outYaml --name "$d-flashloader" --fixed-load-address
+    & target-gen elf $targetPath $outYaml -u --name "$d-flashloader" --fixed-load-address
     if ($LASTEXITCODE -ne 0) {
         Write-Error "target-gen failed for device $d (exit code $LASTEXITCODE). Aborting."
         exit $LASTEXITCODE
