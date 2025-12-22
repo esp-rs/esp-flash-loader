@@ -5,9 +5,9 @@ param(
 
 function Show-Usage {
     Write-Host "Usage:"
-    Write-Host "  .\build.ps1                                 # build all devices"
-    Write-Host "  .\build.ps1 -Device esp32                   # build single device"
-    Write-Host "  .\build.ps1 -Features log,max-cpu-frequency # build with specified features"
+    Write-Host "  .\build.ps1               # build all devices"
+    Write-Host "  .\build.ps1 -Device esp32 # build single device"
+    Write-Host "  .\build.ps1 -Features log # build with specified features"
     Write-Host ""
     Write-Host "Notes:"
     Write-Host "  - The -Features parameter accepts multiple values or a comma-separated string."
@@ -83,7 +83,7 @@ foreach ($d in $devicesToBuild) {
     # Run target-gen to produce YAML
     $outYaml = "output/$d.yaml"
     Write-Host "Generating YAML: $outYaml"
-    & target-gen elf $targetPath $outYaml --name "$d-flashloader"
+    & target-gen elf $targetPath $outYaml --name "$d-flashloader" --fixed-load-address
     if ($LASTEXITCODE -ne 0) {
         Write-Error "target-gen failed for device $d (exit code $LASTEXITCODE). Aborting."
         exit $LASTEXITCODE

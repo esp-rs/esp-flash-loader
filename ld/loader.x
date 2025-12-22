@@ -24,12 +24,6 @@ SECTIONS {
 
         KEEP(*(.srodata .srodata.*))
 
-        *(.data .data.*)
-        *(.sdata .sdata.*)
-
-        *(.bss .bss.*)
-        *(.sbss .sbss.*)
-
         . = ALIGN(4);
     } > IRAM
 
@@ -42,4 +36,23 @@ SECTIONS {
          */
         KEEP(*(DeviceData))
     } > IRAM
+
+    /* TODO: these section names are non-standard, but target-gen has no concept of separate instruction and data busses */
+
+    bss (NOLOAD) : ALIGN(4)
+    {
+        _bss_start = ABSOLUTE(.);
+        . = ALIGN (4);
+        *(.sbss .sbss.* .bss .bss.*);
+        _bss_end = ABSOLUTE(.);
+        . = ALIGN(4);
+    } > RWDATA
+
+    rwdata : {
+        *(.data .data.*)
+        *(.sdata .sdata.*)
+
+        . = ORIGIN(RWDATA) + LENGTH(RWDATA);
+        _stack_start = ABSOLUTE(.);
+    } > RWDATA
 }

@@ -1,7 +1,10 @@
 MEMORY {
     /* Start 64k into the RAM region */
     IRAM : ORIGIN = 0x40390000, LENGTH = 0x10000
+    RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
 }
+
+INCLUDE "loader.x"
 
 PROVIDE( ets_delay_us = 0x40000050 );
 PROVIDE( esp_rom_spiflash_wait_idle = 0x4000010c );

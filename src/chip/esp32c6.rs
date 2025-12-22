@@ -3,8 +3,6 @@ use crate::{
     rom::{RomDataTable, RomDataTables},
 };
 
-pub const STATE_ADDR: usize = 0x4084_0000;
-
 // Max of 16MB
 pub const MAX_FLASH_SIZE: u32 = 0x1000000;
 
@@ -22,6 +20,37 @@ pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block0: 0x600B_0800 + 0x2C,
     block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
 };
+
+pub struct CpuSaveState {
+    saved_sysclk_conf_reg: u32,
+}
+
+impl CpuSaveState {
+    const PCR_SYSCLK_CONF_REG: *mut u32 = 0x60096110 as *mut u32;
+
+    const PCR_SOC_CLK_SEL_M: u32 = 3 << 16;
+    const PCR_SOC_CLK_MAX: u32 = 1 << 16;
+
+    pub const fn new() -> Self {
+        CpuSaveState {
+            saved_sysclk_conf_reg: 0,
+        }
+    }
+
+    pub fn set_max_cpu_clock(&mut self) {
+        self.saved_sysclk_conf_reg = unsafe { Self::PCR_SYSCLK_CONF_REG.read_volatile() };
+
+        unsafe {
+            Self::PCR_SYSCLK_CONF_REG.write_volatile(
+                (self.saved_sysclk_conf_reg & !Self::PCR_SOC_CLK_SEL_M) | Self::PCR_SOC_CLK_MAX,
+            )
+        };
+    }
+
+    pub fn restore(&self) {
+        unsafe { Self::PCR_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
+    }
+}
 
 pub fn major_chip_version() -> u8 {
     read_field::<1, 118, 2>()

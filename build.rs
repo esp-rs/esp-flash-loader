@@ -29,13 +29,13 @@ fn main() {
     #[cfg(feature = "esp32p4")]
     let chip = "esp32p4";
 
-    {
-        fs::copy(
-            format!("ld/{}.x", chip),
-            out_dir.join(format!("{}.x", chip)),
-        )
-        .unwrap();
-        println!("cargo:rerun-if-changed=ld/{}.x", chip);
-        println!("cargo:rustc-link-arg=-Tld/{}.x", chip);
-    }
+    println!("cargo:rustc-env=CHIP_NAME={chip}");
+
+    fs::copy(
+        format!("ld/{}.x", chip),
+        out_dir.join(format!("{}.x", chip)),
+    )
+    .unwrap();
+    println!("cargo:rerun-if-changed=ld/{}.x", chip);
+    println!("cargo:rustc-link-arg=-Tld/{}.x", chip);
 }

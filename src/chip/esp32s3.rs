@@ -3,12 +3,6 @@ use crate::{
     rom::{RomDataTable, RomDataTables},
 };
 
-pub const STATE_ADDR: usize = 0x3FCB_0000;
-
-#[no_mangle]
-// End of SRAM1 - DATA_CACHE_SIZE
-static STACK_PTR: u32 = 0x3FCD_0000;
-
 // Max of 1GB
 pub const MAX_FLASH_SIZE: u32 = 0x40000000;
 
@@ -26,6 +20,63 @@ pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block0: 0x6000_7000 + 0x2C,
     block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
 };
+
+pub struct CpuSaveState {
+    saved_cpu_per_conf_reg: u32,
+    saved_sysclk_conf_reg: u32,
+}
+
+impl CpuSaveState {
+    const SYSTEM_CPU_PER_CONF_REG: *mut u32 = 0x600C0010 as *mut u32;
+    const SYSTEM_CPUPERIOD_SEL_M: u32 = 3;
+    const SYSTEM_CPUPERIOD_MAX: u32 = 2;
+
+    const SYSTEM_SYSCLK_CONF_REG: *mut u32 = 0x600C0060 as *mut u32;
+    const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
+    const SYSTEM_SOC_CLK_MAX: u32 = 1 << 10;
+
+    pub const fn new() -> Self {
+        CpuSaveState {
+            saved_cpu_per_conf_reg: 0,
+            saved_sysclk_conf_reg: 0,
+        }
+    }
+
+    pub fn set_max_cpu_clock(&mut self) {
+        self.saved_cpu_per_conf_reg = unsafe { Self::SYSTEM_CPU_PER_CONF_REG.read_volatile() };
+        self.saved_sysclk_conf_reg = unsafe { Self::SYSTEM_SYSCLK_CONF_REG.read_volatile() };
+
+        // FIXME: setting max CPU frequency causes a crash on later chips
+        if crate::efuse::read_chip_revision() >= 2 {
+            return;
+        }
+
+        unsafe {
+            Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(
+                (self.saved_sysclk_conf_reg & !Self::SYSTEM_SOC_CLK_SEL_M)
+                    | Self::SYSTEM_SOC_CLK_MAX,
+            )
+        };
+
+        // Leave some time for the change to settle
+        extern "C" {
+            fn ets_delay_us(us: u32);
+        }
+        unsafe { ets_delay_us(100) };
+
+        unsafe {
+            Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(
+                (self.saved_cpu_per_conf_reg & !Self::SYSTEM_CPUPERIOD_SEL_M)
+                    | Self::SYSTEM_CPUPERIOD_MAX,
+            )
+        };
+    }
+
+    pub fn restore(&self) {
+        unsafe { Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
+        unsafe { Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(self.saved_cpu_per_conf_reg) };
+    }
+}
 
 pub fn major_chip_version() -> u8 {
     read_field::<1, 184, 2>()

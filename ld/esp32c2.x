@@ -1,7 +1,10 @@
 MEMORY {
     /* Start 64k into the RAM region */
     IRAM : ORIGIN = 0x4038C000, LENGTH = 0x10800
+    RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
 }
+
+INCLUDE "loader.x"
 
 PROVIDE(esp_rom_spiflash_attach = spi_flash_attach);
 

@@ -1,7 +1,10 @@
 MEMORY {
     /* SRAM1 + 0x4000 cache + 0x400 vectors */
     IRAM : ORIGIN = 0x4002C400, LENGTH = 0x10000
+    RWDATA : ORIGIN = 0x3FFBE000, LENGTH = 0x21000
 }
+
+INCLUDE "loader.x"
 
 /**
  * ESP32-S2 ROM address table (except symbols from libgcc and libc)

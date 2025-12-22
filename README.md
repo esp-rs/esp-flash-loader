@@ -36,15 +36,18 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 1. Add a feature for the chip inside `Cargo.toml`
 2. Add a build alias to `.cargo/config.toml`
 3. Add the [ROM API linker script](https://github.com/search?q=repo%3Aespressif%2Fesp-idf++path%3A*rom.api.ld&type=code) inside the `ld` directory.
-4. Inside the ROM API linker script, add a memory section detailing where the program will be loaded.
+4. Inside the ROM API linker script, add a memory section detailing where the program will be loaded, and where its data will be stored.
     ```c
     MEMORY {
         /* Start 64k into the RAM region */
         IRAM : ORIGIN = 0x40390000, LENGTH = 0x10000
+        RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
     }
     ```
-    It's important to note that the algorithm cannot be loaded at the start of RAM, because probe-rs has a header it loads prior to the algo hence the 64K offset.
+    It's important to note that the algorithm cannot be loaded at the start of RAM, because probe-rs loads a short header prior to the algo.
     IRAM origin and length can be obtained from esp-hal. Eg: [ESP32-C3 memory map](https://github.com/esp-rs/esp-hal/blob/ff80b69183739d04d1cb154b8232be01c0b26fd9/esp32c3-hal/ld/db-esp32c3-memory.x#L5-L22)
+    RWDATA should be accessible via the data bus, should be at least 96K in size, and must not overlap with IRAM.
+    IRAM and RWDATA must not overlap with instruction/data caches or the memory reserved for ROM functions.
 5. Add the following snippet to the `main()` function inside `build.rs`, adapting it for the new chip name.
     ```rust
     #[cfg(feature = "esp32c3")]
@@ -52,16 +55,16 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
     ```
 6. [Define `spiconfig` for your the target in `flash.rs`](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+ets_efuse_get_spiconfig+path%3A*c3*&type=code)
 7. Add your device to the table in `main.rs` and calculate addresses.
-8. Define your target's device specific data in `chip/<chip_name>.rs`, and add the file to the list of paths in `main.rs`. Take an existing chip as a reference.
-  Implement code necessary to set maximum CPU speed.
-9. Follow the instructions above for building
+8. Define your target's device specific data in `chip/<chip_name>.rs`, and add the file to the list of paths in `main.rs`. Take an existing chip as a reference. Obtain the ROM memory init addresses from the ROM code elf files.
+9. (Optional) Implement code necessary to set maximum CPU speed.
+10. Follow the instructions above for building
   - It may fail with: `rust-lld: error: undefined symbol: <symbol>`
     - In this case, you need to add the missing method in the ROM API linker script.
       - Eg. ESP32-C2 is missing `esp_rom_spiflash_attach`:
         1. [Search the symbol in esp-idf](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+esp_rom_spiflash_attach+path%3A*c2*&type=code)
         2. Add it to the ROM API linker script: `PROVIDE(esp_rom_spiflash_attach = spi_flash_attach);`
-10. Use `target-gen` _without_ the `update` flag to generate a new yaml algorithm.
-11. Update the resulting yaml file
+11. Use `target-gen` _without_ the `update` flag to generate a new yaml algorithm.
+12. Update the resulting yaml file
    1. Update `name`
    2. Update variants `name`, `type`, `core_access_options` and `memory_map`
       - The first `!Nvm`  block represents the raw flash starting at 0 and up to the maximum supported external flash (check TRM for this, usually in "System and Memory/Features")
@@ -72,4 +75,4 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
    3. Add `load_address` under `flash_algorithms` and assign the IRAM `ORIGIN` value (step 4).
    4. Add `data_load_address` under `flash_algorithms` and assign an appropriate value residing in DRAM.
    4. Add `transfer_encoding: Miniz` under `load_address`
-12. Upstream the new updates to probe-rs.
+13. Upstream the new updates to probe-rs.

@@ -1,8 +1,10 @@
-
 MEMORY {
     /* Start 256k into the uncached RAM region */
     IRAM : ORIGIN = 0x8FF50000, LENGTH = 0x10000
+    RWDATA : ORIGIN = 0x8FF60000, LENGTH = 0x20000
 }
+
+INCLUDE "loader.x"
 
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
 PROVIDE ( uart_tx_one_char = usb_serial_device_tx_one_char );

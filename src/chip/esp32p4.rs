@@ -3,8 +3,6 @@ use crate::{
     rom::{RomDataTable, RomDataTables},
 };
 
-pub const STATE_ADDR: usize = 0x8FF6_0000;
-
 // Max of 64MB
 pub const MAX_FLASH_SIZE: u32 = 0x4000000;
 
@@ -49,6 +47,18 @@ pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block0: 0x5012_D000 + 0x2C,
     block_sizes: &[6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8],
 };
+
+pub struct CpuSaveState {}
+
+impl CpuSaveState {
+    pub const fn new() -> Self {
+        CpuSaveState {}
+    }
+
+    pub fn set_max_cpu_clock(&mut self) {}
+
+    pub fn restore(&self) {}
+}
 
 pub fn major_chip_version() -> u8 {
     let lo = read_field::<1, 68, 2>();
