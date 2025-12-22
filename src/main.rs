@@ -7,7 +7,7 @@
 // Target memory configuration
 
 // Decompressor is 43776 bytes, reserve more in case compiler changes layout
-const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
+const _: [u8; 43780] = [0; core::mem::size_of::<Decompressor>()];
 
 // Placement:
 // - Xtensa: Pin stack top first, calculate backwards:
@@ -364,7 +364,7 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
 pub struct Decompressor {
     decompressor: TinflDecompressor,
     output: OutBuffer,
-    image_start: u32,
+    image_start: Option<u32>,
     offset: u32,
     remaining_compressed: usize,
 }
@@ -372,7 +372,7 @@ pub struct Decompressor {
 impl Decompressor {
     pub fn new() -> Self {
         Self {
-            image_start: 0xFFFF_FFFF,
+            image_start: None,
             offset: 0,
             output: OutBuffer::new(),
             remaining_compressed: 0,
@@ -381,7 +381,7 @@ impl Decompressor {
     }
 
     fn reinit(&mut self, address: u32, compressed: u32) {
-        self.image_start = address;
+        self.image_start = Some(address);
         self.offset = 0;
 
         self.remaining_compressed = compressed as usize;
@@ -430,7 +430,7 @@ impl Decompressor {
 
     pub fn flush(&mut self, process: fn(address: u32, data: &[u8]) -> i32) -> i32 {
         let mut offset = self.offset;
-        let address = self.image_start + offset;
+        let address = self.image_start.unwrap_or(0) + offset;
 
         // Take buffer contents, write to flash and update offset.
         let status = self.output.take(|data| {
@@ -450,7 +450,7 @@ impl Decompressor {
         mut data: &[u8],
         process: fn(u32, &[u8]) -> i32,
     ) -> i32 {
-        if self.image_start != address {
+        if self.image_start != Some(address) {
             if data.len() < 4 {
                 // We don't have enough bytes to read the length
                 return ERROR_BASE_INTERNAL - 4;
