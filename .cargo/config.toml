@@ -12,15 +12,13 @@ esp32p4 = "build --release --features esp32p4 --target riscv32imafc-unknown-none
 
 [target.'cfg(target_arch = "riscv32")']
 rustflags = [
-    "-C", "link-arg=-Tld/loader.x",
     "-C", "link-args=-Map=target/esp-loader.map",
     "-C", "link-args=--nmagic",
 ]
 
 [target.'cfg(target_arch = "xtensa")']
 rustflags = [
-    "-C", "linker=rust-lld",
-    "-C", "link-arg=-Tld/loader.x"
+    "-C", "linker=rust-lld"
 ]
 
 [unstable]

@@ -1,7 +1,10 @@
 MEMORY {
     /* SRAM2 + 0x8400 */
     IRAM : ORIGIN = 0x40380400, LENGTH = 0x10000
+    RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
 }
+
+INCLUDE "loader.x"
 
 PROVIDE( ets_delay_us = 0x40000600 );
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );

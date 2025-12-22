@@ -1,7 +1,10 @@
 MEMORY {
     /* Middle of SRAM0 */
     IRAM : ORIGIN = 0x40090000, LENGTH = 0x10000
+    RWDATA : ORIGIN = 0x3FFC0000, LENGTH = 0x20000
 }
+
+INCLUDE "loader.x"
 
 /*
 ESP32 ROM address table

@@ -2,7 +2,19 @@
 // ABI, just jumping to the function address won't work. Instead, we need to use a call<N>
 // instruction, which will set up the window increment and then jump to the function address.
 
-// STACK_PTR is defined in the chip-specific files
+// _stack_start is defined in the chip-specific linker files
+
+unsafe extern "C" {
+    static _stack_start: u32;
+}
+
+core::arch::global_asm!(
+    "
+    .section .text,\"ax\",@progbits
+    .literal STACK_PTR, {_stack_start}
+    ",
+    _stack_start = sym _stack_start
+);
 
 #[unsafe(naked)]
 #[unsafe(no_mangle)]

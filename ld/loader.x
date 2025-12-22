@@ -42,4 +42,9 @@ SECTIONS {
          */
         KEEP(*(DeviceData))
     } > IRAM
+
+    Data : {
+        . = ORIGIN(RWDATA) + LENGTH(RWDATA);
+        _stack_start = ABSOLUTE(.);
+    } > RWDATA
 }

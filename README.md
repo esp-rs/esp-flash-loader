@@ -36,11 +36,12 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
 1. Add a feature for the chip inside `Cargo.toml`
 2. Add a build alias to `.cargo/config.toml`
 3. Add the [ROM API linker script](https://github.com/search?q=repo%3Aespressif%2Fesp-idf++path%3A*rom.api.ld&type=code) inside the `ld` directory.
-4. Inside the ROM API linker script, add a memory section detailing where the program will be loaded.
+4. Inside the ROM API linker script, add a memory section detailing where the program will be loaded, and where its data will be stored.
     ```c
     MEMORY {
         /* Start 64k into the RAM region */
         IRAM : ORIGIN = 0x40390000, LENGTH = 0x10000
+        RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
     }
     ```
     It's important to note that the algorithm cannot be loaded at the start of RAM, because probe-rs has a header it loads prior to the algo hence the 64K offset.

@@ -33,7 +33,7 @@ const _: [u8; 43776] = [0; core::mem::size_of::<Decompressor>()];
 // ESP32-C6  | 0x4081_0000 | 0x4081_0000 | 0x4084_0000 | 0x4085_0000    | 0x4086_0000
 // ESP32-C61 | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! ROM data use starts at 0x4083EA70, so let's use H2's memory layout
 // ESP32-H2  | 0x4081_0000 | 0x4081_0000 | 0x4082_0000 | 0x4083_0000    | 0x4083_8000 !! has smaller RAM, only reserve 32K for data
-// ESP32-P4  | 0x8FF4_0020 | 0x8FF4_0020 | 0x8FF6_0000 | 0x8FF7_0000    | 0x8FFC_0000 !! Uncached region
+// ESP32-P4  | 0x8FF4_0020 | 0x8FF4_0020 | 0x8FF6_0000 | 0x8FF7_0000    | 0x8FF8_0000 !! Uncached region
 
 #[cfg_attr(feature = "esp32", path = "chip/esp32.rs")]
 #[cfg_attr(feature = "esp32s2", path = "chip/esp32s2.rs")]

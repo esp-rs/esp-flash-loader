@@ -5,10 +5,6 @@ use crate::{
 
 pub const STATE_ADDR: usize = 0x3FCB_0000;
 
-#[no_mangle]
-// End of SRAM1 - DATA_CACHE_SIZE
-static STACK_PTR: u32 = 0x3FCD_0000;
-
 // Max of 1GB
 pub const MAX_FLASH_SIZE: u32 = 0x40000000;
 
