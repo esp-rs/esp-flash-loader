@@ -178,6 +178,155 @@ pub fn wait_for_idle() -> i32 {
     0
 }
 
+fn read_spi_reg(reg: u32) -> u32 {
+    unsafe { (reg as *mut u32).read_volatile() }
+}
+
+fn write_spi_reg(reg: u32, value: u32) {
+    unsafe { (reg as *mut u32).write_volatile(value) }
+}
+
+#[allow(unused)]
+pub struct MemSpi {
+    pub base: u32,
+    pub cmd: u32,
+    pub addr: u32,
+    pub ctrl: u32,
+    pub user: u32,
+    pub user1: u32,
+    pub user2: u32,
+    pub miso_dlen: u32,
+    pub data_buf_0: u32,
+}
+
+#[allow(unused)]
+impl MemSpi {
+    fn cmd(&self) -> u32 {
+        self.base as u32 | self.cmd as u32
+    }
+
+    fn addr(&self) -> u32 {
+        self.base as u32 | self.addr as u32
+    }
+
+    fn ctrl(&self) -> u32 {
+        self.base as u32 | self.ctrl as u32
+    }
+
+    fn user(&self) -> u32 {
+        self.base as u32 | self.user as u32
+    }
+
+    fn user1(&self) -> u32 {
+        self.base as u32 | self.user1 as u32
+    }
+
+    fn user2(&self) -> u32 {
+        self.base as u32 | self.user2 as u32
+    }
+
+    fn miso_dlen(&self) -> u32 {
+        self.base as u32 | self.miso_dlen as u32
+    }
+
+    fn data_buf_0(&self) -> u32 {
+        self.base as u32 | self.data_buf_0 as u32
+    }
+}
+
+fn spi_send_command(command: u32, len: u32) -> u32 {
+    let regs = crate::chip::MEM_SPI;
+
+    // Save registers
+    let old_user_reg = read_spi_reg(regs.user());
+    let old_user2_reg = read_spi_reg(regs.user2());
+
+    // user register
+    const USER_MISO: u32 = 1 << 28;
+    const USER_COMMAND: u32 = 1 << 31;
+
+    // user2 register
+    const USER_COMMAND_BITLEN: u32 = 28;
+
+    // miso dlen register
+    const MISO_BITLEN: u32 = 0;
+
+    // cmd register
+    const USER_CMD: u32 = 1 << 18;
+
+    write_spi_reg(regs.user(), old_user_reg | USER_COMMAND | USER_MISO);
+    write_spi_reg(regs.user2(), (7 << USER_COMMAND_BITLEN) | command);
+    write_spi_reg(regs.addr(), 0);
+
+    write_spi_reg(regs.miso_dlen(), (len.saturating_sub(1)) << MISO_BITLEN);
+    write_spi_reg(regs.data_buf_0(), 0);
+
+    // Execute read
+    write_spi_reg(regs.cmd(), USER_CMD);
+    while read_spi_reg(regs.cmd()) & USER_CMD != 0 {}
+
+    // Read result
+    let value = read_spi_reg(regs.data_buf_0());
+
+    // Restore registers
+    write_spi_reg(regs.user(), old_user_reg);
+    write_spi_reg(regs.user2(), old_user2_reg);
+
+    value & ((1 << len) - 1)
+}
+
+pub fn get_flash_size() -> i32 {
+    const RDID: u32 = 0x9F;
+    let id = spi_send_command(RDID, 24);
+
+    const KB: i32 = 1024;
+    const MB: i32 = 1024 * KB;
+
+    // https://github.com/espressif/esptool/blob/8363cae8eca42ec70e26edfe4d1727549d6ce578/esptool/cmds.py#L55-L98
+    let [manufacturer, _, _, _] = id.to_le_bytes();
+    const ADESTO_VENDOR_ID: u8 = 0x1F;
+    if manufacturer == ADESTO_VENDOR_ID {
+        let [_, capacity, _, _] = id.to_le_bytes();
+        match capacity & 0x1F {
+            0x04 => 512 * KB,
+            0x05 => 1 * MB,
+            0x06 => 2 * MB,
+            0x07 => 4 * MB,
+            0x08 => 8 * MB,
+            0x09 => 16 * MB,
+            _ => -1,
+        }
+    } else {
+        let [_, _, capacity, _] = id.to_le_bytes();
+        match capacity {
+            0x12 => 256 * KB,
+            0x13 => 512 * KB,
+            0x14 => 1 * MB,
+            0x15 => 2 * MB,
+            0x16 => 4 * MB,
+            0x17 => 8 * MB,
+            0x18 => 16 * MB,
+            0x19 => 32 * MB,
+            0x1A => 64 * MB,
+            0x1B => 128 * MB,
+            0x1C => 256 * MB,
+            0x20 => 64 * MB,
+            0x21 => 128 * MB,
+            0x22 => 256 * MB,
+            0x32 => 256 * KB,
+            0x33 => 512 * KB,
+            0x34 => 1 * MB,
+            0x35 => 2 * MB,
+            0x36 => 4 * MB,
+            0x37 => 8 * MB,
+            0x38 => 16 * MB,
+            0x39 => 32 * MB,
+            0x3A => 64 * MB,
+            _ => -1,
+        }
+    }
+}
+
 #[cfg(feature = "esp32s3")]
 fn init_ospi_funcs() {
     static FUNCS: spiflash_legacy_funcs_t = spiflash_legacy_funcs_t {
