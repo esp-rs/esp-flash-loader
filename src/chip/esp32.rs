@@ -94,3 +94,27 @@ pub fn major_chip_version() -> u8 {
 pub fn minor_chip_version() -> u8 {
     read_field::<0, 184, 2>()
 }
+
+/// Ensures that data (e.g. constants) are accessed through the data bus.
+pub unsafe fn read_via_data_bus(s: &u8) -> u8 {
+    // SRAM1
+    const DBUS_START: usize = 0x3FFE_0000;
+    const DBUS_END: usize = 0x4000_0000;
+
+    let addr = s as *const u8 as usize;
+    if addr >= DBUS_START && addr < DBUS_END {
+        *s
+    } else {
+        let byte_in_word = addr & 0x3;
+        let addr = addr - byte_in_word;
+
+        let word: u32;
+        core::arch::asm!(
+            "l32i {0}, {1}, 0",
+            out(reg) word,
+            in(reg) addr,
+        );
+
+        (word >> (byte_in_word * 8)) as u8
+    }
+}

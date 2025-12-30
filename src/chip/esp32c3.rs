@@ -103,3 +103,8 @@ pub fn minor_chip_version() -> u8 {
 
     hi << 3 | lo
 }
+
+/// Ensures that data (e.g. constants) are accessed through the data bus.
+pub unsafe fn read_via_data_bus(s: &u8) -> u8 {
+    unsafe { core::ptr::read(s as *const u8) }
+}

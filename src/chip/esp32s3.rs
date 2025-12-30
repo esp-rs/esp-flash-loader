@@ -101,3 +101,19 @@ pub fn minor_chip_version() -> u8 {
 
     hi << 3 | lo
 }
+
+/// Ensures that data (e.g. constants) are accessed through the data bus.
+pub unsafe fn read_via_data_bus(s: &u8) -> u8 {
+    // SRAM1
+    const DBUS_START: usize = 0x3FC8_8000;
+    const DBUS_END: usize = 0x3FCF_0000;
+    const IBUS_START: usize = 0x4037_8000;
+
+    let addr = s as *const u8 as usize;
+    if addr >= DBUS_START && addr < DBUS_END {
+        *s
+    } else {
+        let ptr = addr - IBUS_START + DBUS_START;
+        unsafe { core::ptr::read(ptr as *const u8) }
+    }
+}
