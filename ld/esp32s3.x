@@ -1,7 +1,8 @@
 MEMORY {
-    /* SRAM2 + 0x8400 */
-    IRAM : ORIGIN = 0x40380400, LENGTH = 0x10000
-    RWDATA : ORIGIN = 0x3FCB0000, LENGTH = 0x20000
+    /* Use SRAM1 (+0x8400) which is accessible via both instruction and data busses */
+    IRAM : ORIGIN = 0x40380400, LENGTH = 0x40388000 - 0x40380400
+    /* SRAM1 over the data bus, after IRAM */
+    RWDATA : ORIGIN = 0x3FC98000, LENGTH = 0x20000
 }
 
 INCLUDE "loader.x"

@@ -82,3 +82,8 @@ pub fn major_chip_version() -> u8 {
 pub fn minor_chip_version() -> u8 {
     read_field::<1, 64, 4>()
 }
+
+/// Ensures that data (e.g. constants) are accessed through the data bus.
+pub unsafe fn read_via_data_bus(s: &u8) -> u8 {
+    unsafe { core::ptr::read(s as *const u8) }
+}

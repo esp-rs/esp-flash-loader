@@ -24,6 +24,8 @@ mod rom;
 //
 // [ARM CMSIS-Pack documentation]: https://arm-software.github.io/CMSIS_5/Pack/html/algorithmFunc.html
 
+use core::mem::MaybeUninit;
+
 use chip::CpuSaveState;
 use panic_never as _;
 
@@ -34,6 +36,7 @@ use crate::tinfl::{
 #[cfg_attr(any(target_arch = "xtensa"), path = "api_xtensa.rs")]
 mod api;
 mod flash;
+mod micro_rtt;
 mod properties;
 mod tinfl;
 
@@ -44,46 +47,23 @@ const ERROR_BASE_INTERNAL: i32 = -1000;
 const ERROR_BASE_TINFL: i32 = -2000;
 const ERROR_BASE_FLASH: i32 = -4000;
 
-#[cfg(feature = "log")]
-mod log {
-    extern "C" {
-        fn uart_tx_one_char(byte: u8);
-    }
+// Reserve memory for the data buffer so that we can use `nm` to
+// get its location and we ensure nothing gets placed on top of it.
+#[unsafe(no_mangle)]
+#[used]
+static mut PAGE_BUFFER: [MaybeUninit<u8>; 32 * 1024] = [MaybeUninit::uninit(); 32 * 1024];
 
-    use ufmt::uWrite;
-    pub struct Uart;
-
-    impl uWrite for Uart {
-        type Error = ();
-        fn write_str(&mut self, s: &str) -> Result<(), ()> {
-            for &b in s.as_bytes() {
-                unsafe { uart_tx_one_char(b) };
-            }
-            Ok(())
-        }
-    }
-}
-
-#[cfg(feature = "log")]
 #[macro_export]
 macro_rules! dprintln {
     () => {
-        ufmt::uwriteln!(crate::log::Uart, "").ok()
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, "").ok()
     };
     ($fmt:literal) => {
-        ufmt::uwriteln!(crate::log::Uart, $fmt).ok()
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt).ok()
     };
     ($fmt:literal, $($arg:tt)*) => {
-        ufmt::uwriteln!(crate::log::Uart, $fmt, $($arg)*).ok()
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt, $($arg)*).ok()
     };
-}
-
-#[cfg(not(feature = "log"))]
-#[macro_export]
-macro_rules! dprintln {
-    () => {};
-    ($fmt:expr) => {};
-    ($fmt:expr, $($arg:tt)*) => {};
 }
 
 struct FlasherState {
@@ -141,9 +121,9 @@ fn init_bss() {
 #[no_mangle]
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     init_bss();
-    dprintln!("INIT");
-
     rom::init_rom_data();
+
+    dprintln!("INIT");
 
     let state = init_state();
     state.saved_cpu_state.set_max_cpu_clock();
@@ -199,7 +179,7 @@ pub unsafe extern "C" fn Verify_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
         return ERROR_BASE_INTERNAL - 5;
     }
 
-    dprintln!("PROGRAM {} bytes @ {}", sz, adr);
+    dprintln!("VERIFY {} bytes @ {}", sz, adr);
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
 
