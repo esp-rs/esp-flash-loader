@@ -121,9 +121,9 @@ fn init_bss() {
 #[no_mangle]
 pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     init_bss();
-    rom::init_rom_data();
-
     dprintln!("INIT");
+
+    rom::init_rom_data();
 
     let state = init_state();
     state.saved_cpu_state.set_max_cpu_clock();
