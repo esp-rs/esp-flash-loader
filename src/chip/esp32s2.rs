@@ -15,7 +15,7 @@ pub const ROM_DATA_TABLES: RomDataTables = &[RomDataTable {
     bss_end: 0x4001BED0,
 }];
 
-pub const ROM_TABLE_ENTRY_SIZE: u32 = 12;
+pub const ROM_TABLE_ENTRY_SIZE: u32 = 16;
 
 pub const EFUSE_INFO: EfuseInfo = EfuseInfo {
     block0: 0x3F41_A000 + 0x2C,

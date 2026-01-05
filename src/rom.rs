@@ -106,6 +106,7 @@ fn zero(first: u32, end: u32) {
 
 pub fn init_rom_data() {
     let rev = crate::efuse::read_chip_revision();
+    dprintln!("Chip revision: {}", rev);
     if let Some(table) = crate::chip::ROM_DATA_TABLES
         .iter()
         .filter(|table| table.min_revision <= rev)
