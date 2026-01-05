@@ -2,6 +2,19 @@
 #![no_main]
 #![cfg_attr(target_arch = "xtensa", feature(asm_experimental_arch))]
 
+#[macro_export]
+macro_rules! dprintln {
+    () => {
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, "").ok()
+    };
+    ($fmt:literal) => {
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt).ok()
+    };
+    ($fmt:literal, $($arg:tt)*) => {
+        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt, $($arg)*).ok()
+    };
+}
+
 // TODO: implement clock frequency setting for newer chips
 
 #[cfg_attr(feature = "esp32", path = "chip/esp32.rs")]
@@ -52,19 +65,6 @@ const ERROR_BASE_FLASH: i32 = -4000;
 #[unsafe(no_mangle)]
 #[used]
 static mut PAGE_BUFFER: [MaybeUninit<u8>; 32 * 1024] = [MaybeUninit::uninit(); 32 * 1024];
-
-#[macro_export]
-macro_rules! dprintln {
-    () => {
-        ufmt::uwriteln!($crate::micro_rtt::RttLog, "").ok()
-    };
-    ($fmt:literal) => {
-        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt).ok()
-    };
-    ($fmt:literal, $($arg:tt)*) => {
-        ufmt::uwriteln!($crate::micro_rtt::RttLog, $fmt, $($arg)*).ok()
-    };
-}
 
 struct FlasherState {
     inited: bool,
