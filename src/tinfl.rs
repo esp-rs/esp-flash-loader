@@ -27,7 +27,7 @@ type TinflStatus = i8;
 // const TINFL_STATUS_FAILED: TinflStatus = -1;
 pub const TINFL_STATUS_DONE: TinflStatus = 0;
 pub const TINFL_STATUS_NEEDS_MORE_INPUT: TinflStatus = 1;
-// const TINFL_STATUS_HAS_MORE_OUTPUT: TinflStatus = 2;
+pub const TINFL_STATUS_HAS_MORE_OUTPUT: TinflStatus = 2;
 
 const TINFL_MAX_HUFF_SYMBOLS_0: usize = 288;
 const TINFL_MAX_HUFF_TABLES: usize = 3;
@@ -90,6 +90,8 @@ impl TinflDecompressor {
     }
 }
 
+/// The ROM flash write reads the buffer in words, so it must be word-aligned.
+#[repr(C, align(4))]
 pub struct OutBuffer {
     buffer: MaybeUninit<[u8; 32768]>,
     len: usize,

@@ -178,13 +178,21 @@ pub fn write_flash(address: u32, data: &[u8]) -> i32 {
         return 0;
     }
 
-    let mut word = [0xFFu8; 4];
+    let mut bytes = [0xFFu8; 4];
     let mut i = 0;
     while i < tail_len {
-        unsafe { *word.as_mut_ptr().add(i) = *data.as_ptr().add(aligned_len + i) };
+        unsafe { *bytes.as_mut_ptr().add(i) = *data.as_ptr().add(aligned_len + i) };
         i += 1;
     }
-    unsafe { esp_rom_spiflash_write(address + aligned_len as u32, word.as_ptr(), 4) }
+    // The ROM reads the source in words, so it must be word-aligned.
+    let word = u32::from_ne_bytes(bytes);
+    unsafe {
+        esp_rom_spiflash_write(
+            address + aligned_len as u32,
+            (&raw const word).cast::<u8>(),
+            4,
+        )
+    }
 }
 
 pub fn read_flash(address: u32, data: &mut [u8]) -> i32 {

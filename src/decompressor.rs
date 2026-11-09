@@ -2,7 +2,10 @@
 
 use crate::{
     flash,
-    tinfl::{OutBuffer, TinflDecompressor, TINFL_STATUS_DONE, TINFL_STATUS_NEEDS_MORE_INPUT},
+    tinfl::{
+        OutBuffer, TinflDecompressor, TINFL_STATUS_DONE, TINFL_STATUS_HAS_MORE_OUTPUT,
+        TINFL_STATUS_NEEDS_MORE_INPUT,
+    },
     ERROR_BASE_FLASH, ERROR_BASE_INTERNAL, ERROR_BASE_TINFL,
 };
 
@@ -47,10 +50,13 @@ impl Decompressor {
         // Signal tinfl_decompress() that this is the last chunk
         let last = self.remaining_compressed == 0;
 
-        // Iterate through all the input
+        // Iterate through all the input, and all the output that it produces. The decompressor
+        // can hold pending output after it consumed the last input byte.
         let mut input = &input[..chunk_len];
         let mut status = TINFL_STATUS_NEEDS_MORE_INPUT as i32;
-        while !input.is_empty() && status > TINFL_STATUS_DONE as i32 {
+        while status == TINFL_STATUS_HAS_MORE_OUTPUT as i32
+            || (!input.is_empty() && status > TINFL_STATUS_DONE as i32)
+        {
             status = self
                 .decompressor
                 .decompress(&mut input, &mut self.output, last);
@@ -61,7 +67,7 @@ impl Decompressor {
                 let flush_status = self.flush();
 
                 if flush_status < 0 {
-                    return ERROR_BASE_FLASH + flush_status;
+                    return flush_status;
                 }
             }
         }
@@ -114,10 +120,11 @@ impl Decompressor {
 }
 
 fn write_to_flash(address: u32, data: &[u8]) -> i32 {
+    // The ROM returns 1 on error and 2 on timeout.
     let status = flash::write_flash(address, data);
 
-    if status < 0 {
-        return ERROR_BASE_FLASH + status;
+    if status != 0 {
+        return ERROR_BASE_FLASH - status;
     }
 
     0
