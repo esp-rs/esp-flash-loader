@@ -9,6 +9,11 @@ INCLUDE "loader.x"
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
 PROVIDE ( uart_tx_one_char = usb_serial_device_tx_one_char );
 
+/* The table below is for revisions before v3.0. v3.0 moved these, see esp32p4.rom.ld in esp-idf. */
+MD5Init_v3 = 0x4fc005e0;
+MD5Update_v3 = 0x4fc005e4;
+MD5Final_v3 = 0x4fc005e8;
+
 /*
  * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
