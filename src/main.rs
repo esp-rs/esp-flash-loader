@@ -73,7 +73,6 @@ struct FlasherState {
     inited: bool,
     saved_cpu_state: CpuSaveState,
     decompressor: Decompressor,
-    read_buffer: [u8; 256],
     signature_buffer: [u8; 4096],
     md5: md5::Md5Context,
 }
@@ -82,7 +81,6 @@ static mut STATE: FlasherState = FlasherState {
     inited: false,
     saved_cpu_state: CpuSaveState::new(),
     decompressor: Decompressor::new(),
-    read_buffer: [0; 256],
     signature_buffer: [0; 4096],
     md5: md5::Md5Context::new(),
 };
@@ -176,24 +174,6 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn Verify_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    let Some(state) = state() else {
-        return ERROR_BASE_INTERNAL - 1;
-    };
-
-    if (buf as u32) % 4 != 0 {
-        dprintln!("ERROR buf not word aligned");
-        return ERROR_BASE_INTERNAL - 5;
-    }
-
-    dprintln!("VERIFY {} bytes @ {}", sz, adr);
-
-    let input = core::slice::from_raw_parts(buf, sz as usize);
-
-    state.decompressor.verify(adr, input)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn ReadFlash_impl(adr: u32, sz: u32, buf: *mut u8) -> i32 {
     if state().is_none() {
         return ERROR_BASE_INTERNAL - 1;
@@ -229,28 +209,6 @@ pub unsafe extern "C" fn Signatures_md5_impl(table: *mut u8, count: u32) -> i32 
     }
 
     count as i32
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn BlankCheck_impl(adr: u32, sz: u32, pat: u8) -> i32 {
-    let Some(state) = state() else {
-        return ERROR_BASE_INTERNAL - 1;
-    };
-
-    for i in (0..sz).step_by(state.read_buffer.len()) {
-        if crate::flash::read_flash(adr + i as u32, &mut state.read_buffer) != 0 {
-            return ERROR_BASE_INTERNAL - 2;
-        }
-        let mut idx = 0;
-        while idx < state.read_buffer.len() {
-            if state.read_buffer[idx] != pat {
-                return ERROR_BASE_INTERNAL - 3;
-            }
-            idx += 1;
-        }
-    }
-
-    0
 }
 
 #[no_mangle]

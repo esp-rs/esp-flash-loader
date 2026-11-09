@@ -1,4 +1,4 @@
-//! Decompresses the image, then writes or verifies it.
+//! Decompresses the image, then writes it.
 
 use crate::{
     flash,
@@ -35,7 +35,7 @@ impl Decompressor {
         self.output.take(|_| {});
     }
 
-    fn decompress(&mut self, input: &[u8], process: fn(u32, &[u8]) -> i32) -> i32 {
+    fn decompress(&mut self, input: &[u8]) -> i32 {
         if self.remaining_compressed == 0 {
             return ERROR_BASE_INTERNAL - 3;
         }
@@ -58,7 +58,7 @@ impl Decompressor {
             if status == TINFL_STATUS_DONE as i32 || self.output.full() {
                 // We're either finished or the decompressor can't continue
                 // until we flush the buffer.
-                let flush_status = self.flush(process);
+                let flush_status = self.flush();
 
                 if flush_status < 0 {
                     return ERROR_BASE_FLASH + flush_status;
@@ -73,7 +73,7 @@ impl Decompressor {
         }
     }
 
-    pub fn flush(&mut self, process: fn(address: u32, data: &[u8]) -> i32) -> i32 {
+    pub fn flush(&mut self) -> i32 {
         let mut offset = self.offset;
         let address = self.image_start.unwrap_or(0) + offset;
 
@@ -81,7 +81,7 @@ impl Decompressor {
         let status = self.output.take(|data| {
             offset += data.len() as u32;
 
-            process(address, data)
+            write_to_flash(address, data)
         });
 
         self.offset = offset;
@@ -89,12 +89,7 @@ impl Decompressor {
         status
     }
 
-    fn handle_compressed(
-        &mut self,
-        address: u32,
-        mut data: &[u8],
-        process: fn(u32, &[u8]) -> i32,
-    ) -> i32 {
+    pub fn program(&mut self, address: u32, mut data: &[u8]) -> i32 {
         if self.image_start != Some(address) {
             if data.len() < 4 {
                 // We don't have enough bytes to read the length
@@ -114,24 +109,7 @@ impl Decompressor {
 
             self.reinit(address, compressed_length);
         }
-        self.decompress(data, process)
-    }
-
-    pub fn program(&mut self, address: u32, data: &[u8]) -> i32 {
-        self.handle_compressed(address, data, write_to_flash)
-    }
-
-    pub fn verify(&mut self, address: u32, data: &[u8]) -> i32 {
-        // We're supposed to return the address up to which we've verified.
-        // However, we process compressed data and the caller expects us to respond in terms of
-        // compressed offsets, so we don't actually know where comparison fails.
-        let status = if self.handle_compressed(address, data, verify_flash) == 0 {
-            address + data.len() as u32
-        } else {
-            address
-        };
-
-        status as i32
+        self.decompress(data)
     }
 }
 
@@ -140,43 +118,6 @@ fn write_to_flash(address: u32, data: &[u8]) -> i32 {
 
     if status < 0 {
         return ERROR_BASE_FLASH + status;
-    }
-
-    0
-}
-
-fn verify_flash(mut address: u32, mut data: &[u8]) -> i32 {
-    const READBACK_BUFFER: usize = 256;
-    let mut readback = unsafe {
-        let mut buf = core::mem::MaybeUninit::<[u8; READBACK_BUFFER]>::uninit();
-        for i in 0..READBACK_BUFFER {
-            buf.as_mut_ptr().cast::<u8>().write_volatile(i as u8);
-        }
-        buf.assume_init()
-    };
-
-    while !data.is_empty() {
-        let chunk_size = READBACK_BUFFER.min(data.len());
-        let (slice, rest) = unsafe {
-            // SAFETY: skip is always at most `data.len()`
-            data.split_at_unchecked(chunk_size)
-        };
-        data = rest;
-
-        let readback_slice = &mut readback[..chunk_size];
-
-        let status = flash::read_flash(address, readback_slice);
-        if status < 0 {
-            return -1;
-        }
-
-        for (a, b) in slice.iter().zip(readback_slice.iter()) {
-            if a != b {
-                return -1;
-            }
-        }
-
-        address += chunk_size as u32;
     }
 
     0
