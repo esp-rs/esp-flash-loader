@@ -119,12 +119,30 @@ impl Decompressor {
     }
 }
 
-fn write_to_flash(address: u32, data: &[u8]) -> i32 {
-    // The ROM returns 1 on error and 2 on timeout.
-    let status = flash::write_flash(address, data);
+/// Writes `data` one flash page at a time, and skips the pages that hold only 0xFF.
+///
+/// Programming 0xFF does not change NOR flash, and an image can expand to megabytes of it.
+fn write_to_flash(mut address: u32, mut data: &[u8]) -> i32 {
+    const FLASH_PAGE_SIZE: u32 = 256;
 
-    if status != 0 {
-        return ERROR_BASE_FLASH - status;
+    while !data.is_empty() {
+        let to_boundary = FLASH_PAGE_SIZE - address % FLASH_PAGE_SIZE;
+        let len = data.len().min(to_boundary as usize);
+        let (page, rest) = unsafe {
+            // SAFETY: `len` is at most `data.len()`
+            data.split_at_unchecked(len)
+        };
+
+        if !page.iter().all(|&byte| byte == 0xFF) {
+            // The ROM returns 1 on error and 2 on timeout.
+            let status = flash::write_flash(address, page);
+            if status != 0 {
+                return ERROR_BASE_FLASH - status;
+            }
+        }
+
+        address += len as u32;
+        data = rest;
     }
 
     0
