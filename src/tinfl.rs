@@ -27,7 +27,7 @@ type TinflStatus = i8;
 // const TINFL_STATUS_FAILED: TinflStatus = -1;
 pub const TINFL_STATUS_DONE: TinflStatus = 0;
 pub const TINFL_STATUS_NEEDS_MORE_INPUT: TinflStatus = 1;
-// const TINFL_STATUS_HAS_MORE_OUTPUT: TinflStatus = 2;
+pub const TINFL_STATUS_HAS_MORE_OUTPUT: TinflStatus = 2;
 
 const TINFL_MAX_HUFF_SYMBOLS_0: usize = 288;
 const TINFL_MAX_HUFF_TABLES: usize = 3;
@@ -90,28 +90,32 @@ impl TinflDecompressor {
     }
 }
 
+/// The ROM flash write reads the buffer in words, so it must be word-aligned.
+#[repr(C, align(4))]
 pub struct OutBuffer {
-    buffer: MaybeUninit<[u8; 32768]>,
+    buffer: [MaybeUninit<u8>; OutBuffer::SIZE],
+    /// The number of initialized bytes at the start of `buffer`.
     len: usize,
 }
 
 impl OutBuffer {
+    const SIZE: usize = 32768;
+
     pub const fn new() -> Self {
         Self {
-            buffer: MaybeUninit::uninit(),
+            buffer: [MaybeUninit::uninit(); Self::SIZE],
             len: 0,
         }
     }
 
     fn space(&self) -> usize {
-        unsafe { self.buffer.assume_init() }.len() - self.len
+        Self::SIZE - self.len
     }
 
     unsafe fn pointers(&mut self) -> (*mut u8, *mut u8) {
-        let write_idx = self.len;
-        let start = core::ptr::addr_of_mut!(self.buffer).cast();
+        let start = self.buffer.as_mut_ptr().cast::<u8>();
 
-        (start, start.add(write_idx))
+        (start, start.add(self.len))
     }
 
     pub fn full(&self) -> bool {
@@ -119,10 +123,10 @@ impl OutBuffer {
     }
 
     pub fn take<R>(&mut self, out: impl FnOnce(&[u8]) -> R) -> R {
+        let len = core::mem::take(&mut self.len);
         let data = unsafe {
-            // self.len is always <= self.buffer.len()
-            let len = core::mem::take(&mut self.len);
-            self.buffer.assume_init_mut().get_unchecked(..len)
+            // The decompressor initialized the first `len` bytes, and `len <= SIZE`.
+            core::slice::from_raw_parts(self.buffer.as_ptr().cast::<u8>(), len)
         };
 
         out(data)

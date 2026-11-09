@@ -69,34 +69,6 @@ extern "C" fn ProgramPage() {
 
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
-extern "C" fn Verify() {
-    core::arch::naked_asm!(
-        "l32r a1, STACK_PTR",
-        "mov.n a6, a2",
-        "mov.n a7, a3",
-        "mov.n a8, a4",
-        "call4 Verify_impl",
-        "mov.n a2, a6",
-        "break 1, 15",
-    );
-}
-
-#[unsafe(naked)]
-#[no_mangle]
-extern "C" fn BlankCheck() {
-    core::arch::naked_asm!(
-        "l32r a1, STACK_PTR",
-        "mov.n a6, a2",
-        "mov.n a7, a3",
-        "mov.n a8, a4",
-        "call4 BlankCheck_impl",
-        "mov.n a2, a6",
-        "break 1, 15",
-    );
-}
-
-#[unsafe(naked)]
-#[unsafe(no_mangle)]
 extern "C" fn UnInit() {
     core::arch::naked_asm!(
         "l32r a1, STACK_PTR",
@@ -140,6 +112,19 @@ extern "C" fn VendorFunc_ChipRevision() {
     core::arch::naked_asm!(
         "l32r a1, STACK_PTR",
         "call4 ChipRevision_impl",
+        "mov.n a2, a6",
+        "break 1, 15",
+    );
+}
+
+#[unsafe(naked)]
+#[unsafe(no_mangle)]
+extern "C" fn VendorFunc_Signatures_md5() {
+    core::arch::naked_asm!(
+        "l32r a1, STACK_PTR",
+        "mov.n a6, a2",
+        "mov.n a7, a3",
+        "call4 Signatures_md5_impl",
         "mov.n a2, a6",
         "break 1, 15",
     );

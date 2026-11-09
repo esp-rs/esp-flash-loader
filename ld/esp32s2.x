@@ -113,3 +113,7 @@ PROVIDE ( esp_rom_spiflash_config_readmode = SPIReadModeCnfig );
 PROVIDE ( esp_rom_spiflash_erase_block = SPIEraseBlock );
 PROVIDE ( esp_rom_spiflash_write_encrypted = SPI_Encrypt_Write );
 PROVIDE ( esp_rom_spiflash_erase_area = SPIEraseArea );
+
+PROVIDE( MD5Init = 0x4000526c );
+PROVIDE( MD5Update = 0x4000528c );
+PROVIDE( MD5Final = 0x4000530c );

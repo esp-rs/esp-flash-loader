@@ -1657,3 +1657,7 @@ PROVIDE ( esp_rom_spiflash_write_status = 0x400622f0 );
 PROVIDE ( esp_rom_spiflash_wait_idle = 0x400622c0 );
 PROVIDE ( esp_rom_spiflash_unlock = 0x400????? );
 */
+
+PROVIDE( MD5Init = 0x4005da7c );
+PROVIDE( MD5Update = 0x4005da9c );
+PROVIDE( MD5Final = 0x4005db1c );

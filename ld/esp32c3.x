@@ -108,3 +108,7 @@ tinfl_decompress = 0x400000f4;
 tinfl_decompress_mem_to_callback = 0x400000f8;
 tinfl_decompress_mem_to_heap = 0x400000fc;
 tinfl_decompress_mem_to_mem = 0x40000100;
+
+PROVIDE( MD5Init = 0x40000614 );
+PROVIDE( MD5Update = 0x40000618 );
+PROVIDE( MD5Final = 0x4000061c );

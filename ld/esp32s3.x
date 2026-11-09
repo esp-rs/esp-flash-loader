@@ -159,3 +159,7 @@ ets_efuse_flash_octal_mode = 0x40002004;
 PROVIDE( rom_spiflash_legacy_funcs = 0x3fceffe8 );
 PROVIDE( rom_spiflash_legacy_data = 0x3fceffe4 );
 PROVIDE( g_flash_guard_ops = 0x3fceffec );
+
+PROVIDE( MD5Init = 0x40001c5c );
+PROVIDE( MD5Update = 0x40001c68 );
+PROVIDE( MD5Final = 0x40001c74 );
