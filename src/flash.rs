@@ -109,6 +109,7 @@ pub fn attach() -> i32 {
         feature = "esp32c6",
         feature = "esp32c61",
         feature = "esp32h2",
+        feature = "esp32h21",
         feature = "esp32h4",
         feature = "esp32p4",
         feature = "esp32s31"

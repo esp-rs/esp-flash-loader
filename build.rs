@@ -26,6 +26,8 @@ fn main() {
     let chip = "esp32c61";
     #[cfg(feature = "esp32h2")]
     let chip = "esp32h2";
+    #[cfg(feature = "esp32h21")]
+    let chip = "esp32h21";
     #[cfg(feature = "esp32h4")]
     let chip = "esp32h4";
     #[cfg(feature = "esp32p4")]

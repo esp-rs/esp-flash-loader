@@ -26,6 +26,7 @@ macro_rules! dprintln {
 #[cfg_attr(feature = "esp32c6", path = "chip/esp32c6.rs")]
 #[cfg_attr(feature = "esp32c61", path = "chip/esp32c61.rs")]
 #[cfg_attr(feature = "esp32h2", path = "chip/esp32h2.rs")]
+#[cfg_attr(feature = "esp32h21", path = "chip/esp32h21.rs")]
 #[cfg_attr(feature = "esp32h4", path = "chip/esp32h4.rs")]
 #[cfg_attr(feature = "esp32p4", path = "chip/esp32p4.rs")]
 #[cfg_attr(feature = "esp32s31", path = "chip/esp32s31.rs")]
