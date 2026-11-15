@@ -49,6 +49,8 @@ use crate::{decompressor::Decompressor, signature::SignatureEntry};
 
 #[cfg_attr(any(target_arch = "xtensa"), path = "api_xtensa.rs")]
 mod api;
+#[cfg(any(feature = "esp32", feature = "esp32s3"))]
+mod app_core;
 mod decompressor;
 mod flash;
 mod md5;
@@ -162,7 +164,7 @@ pub unsafe extern "C" fn EraseChip_impl() -> i32 {
 
 #[no_mangle]
 pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> i32 {
-    let Some(state) = state() else {
+    if state().is_none() {
         return ERROR_BASE_INTERNAL - 1;
     };
 
@@ -174,6 +176,19 @@ pub unsafe extern "C" fn ProgramPage_impl(adr: u32, sz: u32, buf: *const u8) -> 
     dprintln!("PROGRAM {} bytes @ {}", sz, adr);
 
     let input = core::slice::from_raw_parts(buf, sz as usize);
+
+    #[cfg(any(feature = "esp32", feature = "esp32s3"))]
+    let result = app_core::program(adr, input);
+    #[cfg(not(any(feature = "esp32", feature = "esp32s3")))]
+    let result = program_page_on_this_core(adr, input);
+    result
+}
+
+/// Decompresses and writes one page on the core that calls it.
+pub(crate) fn program_page_on_this_core(adr: u32, input: &[u8]) -> i32 {
+    let Some(state) = state() else {
+        return ERROR_BASE_INTERNAL - 1;
+    };
 
     state.decompressor.program(adr, input)
 }
@@ -221,6 +236,9 @@ pub unsafe extern "C" fn UnInit_impl(fnc: u32) -> i32 {
     let Some(state) = state() else {
         return ERROR_BASE_INTERNAL - 1;
     };
+
+    #[cfg(any(feature = "esp32", feature = "esp32s3"))]
+    app_core::finish();
 
     state.saved_cpu_state.restore();
     state.inited = false;
