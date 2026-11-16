@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -39,12 +39,16 @@ pub struct CpuSaveState {
     saved_sysclk_conf_reg: u32,
     saved_rtc_cntl_date_reg: u32,
     modified: bool,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
 }
 
 extern "C" {
     fn ets_delay_us(us: u32);
     fn ets_update_cpu_frequency(ticks_per_us: u32);
     fn rom_i2c_writeReg_Mask(block: u32, host_id: u32, reg_add: u32, msb: u32, lsb: u32, data: u32);
+    fn ets_efuse_flash_octal_mode() -> bool;
 }
 
 impl CpuSaveState {
@@ -81,12 +85,49 @@ impl CpuSaveState {
     const I2C_DIG_DREG_LSB: u32 = 0;
     const DBIAS_240M: u32 = 28;
 
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+    const SPI_MEM_CORE_CLK_SEL_REG: *const u32 = 0x6000_30EC as *const u32;
+    const CORE_CLK_SEL_M: u32 = 3;
+    // 80 MHz / 2
+    const SPI1_CLOCK_DIV2: u32 = (1 << 16) | 1;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved_cpu_per_conf_reg: 0,
             saved_sysclk_conf_reg: 0,
             saved_rtc_cntl_date_reg: 0,
             modified: false,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
+        }
+    }
+
+    /// Runs SPI1 at 40 MHz instead of the reset default of 80 MHz / 4, and makes the ROM write
+    /// 64 bytes per command.
+    pub fn configure_flash(&mut self) {
+        let soc_clk_sel =
+            unsafe { Self::SYSTEM_SYSCLK_CONF_REG.read_volatile() } & Self::SYSTEM_SOC_CLK_SEL_M;
+        let core_clk_sel =
+            unsafe { Self::SPI_MEM_CORE_CLK_SEL_REG.read_volatile() } & Self::CORE_CLK_SEL_M;
+        // The SPI0/1 core clock is 80 MHz only with the CPU on the PLL.
+        if soc_clk_sel == Self::SYSTEM_SOC_CLK_PLL && core_clk_sel == 0 {
+            unsafe {
+                self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+                self.flash_clock_modified = true;
+                Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLOCK_DIV2);
+            }
+        }
+        // Octal flash uses the loader's own function table.
+        if !unsafe { ets_efuse_flash_octal_mode() } {
+            self.write_chunk.enlarge();
+        }
+    }
+
+    fn restore_flash(&self) {
+        self.write_chunk.restore();
+        if self.flash_clock_modified {
+            unsafe { Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock) };
         }
     }
 
@@ -148,9 +189,8 @@ impl CpuSaveState {
         unsafe { ets_update_cpu_frequency(240) };
     }
 
-    pub fn configure_flash(&mut self) {}
-
     pub fn restore(&self) {
+        self.restore_flash();
         if !self.modified {
             return;
         }
@@ -165,6 +205,10 @@ impl CpuSaveState {
             ets_update_cpu_frequency(previous_mhz);
         }
     }
+}
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x3FC8_8000..0x3FD0_0000).contains(&address)
 }
 
 fn previous_cpu_mhz(cpu_per_conf: u32, sysclk_conf: u32) -> u32 {
