@@ -37,6 +37,8 @@ pub const MEM_SPI: MemSpi = MemSpi {
 pub struct CpuSaveState {
     saved_cpu_per_conf_reg: u32,
     saved_sysclk_conf_reg: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
 }
 
 impl CpuSaveState {
@@ -48,10 +50,41 @@ impl CpuSaveState {
     const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
     const SYSTEM_SOC_CLK_MAX: u32 = 1 << 10;
 
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+    const SPI_MEM_CORE_CLK_SEL_REG: *const u32 = 0x3F40_30E0 as *const u32;
+    const SPI01_CLK_SEL_M: u32 = 3;
+    // 80 MHz / 2
+    const SPI1_CLOCK_DIV2: u32 = (1 << 16) | 1;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved_cpu_per_conf_reg: 0,
             saved_sysclk_conf_reg: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+        }
+    }
+
+    /// Runs SPI1 at 40 MHz instead of the reset default of 80 MHz / 4.
+    pub fn configure_flash(&mut self) {
+        let soc_clk_sel =
+            unsafe { Self::SYSTEM_SYSCLK_CONF_REG.read_volatile() } & Self::SYSTEM_SOC_CLK_SEL_M;
+        let spi01_clk_sel =
+            unsafe { Self::SPI_MEM_CORE_CLK_SEL_REG.read_volatile() } & Self::SPI01_CLK_SEL_M;
+        // The SPI0/1 core clock is 80 MHz only with the CPU on the PLL.
+        if soc_clk_sel != Self::SYSTEM_SOC_CLK_MAX || spi01_clk_sel != 0 {
+            return;
+        }
+        unsafe {
+            self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+            self.flash_clock_modified = true;
+            Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLOCK_DIV2);
+        }
+    }
+
+    fn restore_flash(&self) {
+        if self.flash_clock_modified {
+            unsafe { Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock) };
         }
     }
 
@@ -71,9 +104,8 @@ impl CpuSaveState {
         }
     }
 
-    pub fn configure_flash(&mut self) {}
-
     pub fn restore(&self) {
+        self.restore_flash();
         unsafe { Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
         unsafe { Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(self.saved_cpu_per_conf_reg) };
     }
