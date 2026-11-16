@@ -218,7 +218,12 @@ pub fn wait_for_idle() -> i32 {
     0
 }
 
-#[cfg(any(feature = "esp32c5", feature = "esp32c61", feature = "esp32p4"))]
+#[cfg(any(
+    feature = "esp32c5",
+    feature = "esp32c61",
+    feature = "esp32h4",
+    feature = "esp32p4"
+))]
 pub mod rom_write_chunk {
     use crate::chip::is_data_ram;
 

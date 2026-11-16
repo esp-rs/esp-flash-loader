@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::RomDataTables,
 };
 
@@ -40,15 +40,21 @@ pub struct CpuSaveState {
     saved: [u32; 3],
     saved_ticks_per_us: u32,
     modified: bool,
+    saved_mspi_clk_conf: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
 }
 
 impl CpuSaveState {
     const PCR: u32 = 0x6009_4000;
+    const MSPI_CLK_CONF: *mut u32 = (Self::PCR + 0x1C) as *mut u32;
     const SYSCLK_CONF: *mut u32 = (Self::PCR + 0x114) as *mut u32;
     const CPU_FREQ_CONF: *mut u32 = (Self::PCR + 0x11C) as *mut u32;
     const AHB_FREQ_CONF: *mut u32 = (Self::PCR + 0x120) as *mut u32;
     const PLL_DIV_CLK_EN: *const u32 = (Self::PCR + 0x12C) as *const u32;
     const BUS_CLK_UPDATE: *mut u32 = (Self::PCR + 0x148) as *mut u32;
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
 
     const SOC_CLK_SEL_MASK: u32 = 3 << 16;
     const SOC_CLK_SEL_PLL: u32 = 3 << 16;
@@ -62,11 +68,44 @@ impl CpuSaveState {
     const CPU_DIV: u32 = 0;
     const AHB_DIV: u32 = 2;
 
+    // MSPI_FAST_DIV_NUM and MSPI_FUNC_CLK_SEL. Zero selects XTAL_CLK, undivided.
+    const MSPI_CLK_SRC_MASK: u32 = 0x3FF;
+    const SPI1_CLK_EQU_SYSCLK: u32 = 1 << 31;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved: [0; 3],
             saved_ticks_per_us: 0,
             modified: false,
+            saved_mspi_clk_conf: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
+        }
+    }
+
+    /// Runs SPI1 at the 32 MHz XTAL_CLK instead of the reset default XTAL_CLK / 4, and makes
+    /// the ROM write 64 bytes per command.
+    pub fn configure_flash(&mut self) {
+        unsafe {
+            self.saved_mspi_clk_conf = Self::MSPI_CLK_CONF.read_volatile();
+            self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+            self.flash_clock_modified = true;
+
+            Self::MSPI_CLK_CONF.write_volatile(self.saved_mspi_clk_conf & !Self::MSPI_CLK_SRC_MASK);
+            Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLK_EQU_SYSCLK);
+        }
+        self.write_chunk.enlarge();
+    }
+
+    fn restore_flash(&self) {
+        self.write_chunk.restore();
+        if !self.flash_clock_modified {
+            return;
+        }
+        unsafe {
+            Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock);
+            Self::MSPI_CLK_CONF.write_volatile(self.saved_mspi_clk_conf);
         }
     }
 
@@ -108,9 +147,9 @@ impl CpuSaveState {
         unsafe { ets_update_cpu_frequency(Self::CPU_MHZ) };
     }
 
-    pub fn configure_flash(&mut self) {}
-
     pub fn restore(&self) {
+        self.restore_flash();
+
         if !self.modified {
             return;
         }
@@ -120,6 +159,10 @@ impl CpuSaveState {
         Self::update_bus_clocks();
         unsafe { ets_update_cpu_frequency(self.saved_ticks_per_us) };
     }
+}
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x4081_0000..0x4086_0000).contains(&address)
 }
 
 // EFUSE_BLK1, bit 118, 2 bits (WAFER_VERSION_MAJOR)
