@@ -77,18 +77,52 @@ pub const MEM_SPI: MemSpi = MemSpi {
     data_buf_0: 0x58,
 };
 
-pub struct CpuSaveState {}
+pub struct CpuSaveState {
+    saved_peri_clk_ctrl00: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+}
 
 impl CpuSaveState {
+    const PERI_CLK_CTRL00: *mut u32 = 0x500E_6030 as *mut u32;
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+
+    // FLASH_CLK_SRC_SEL and FLASH_CORE_CLK_DIV_NUM. Zero selects XTAL_CLK, undivided.
+    const FLASH_CLK_SRC_MASK: u32 = 0xFF3;
+    const SPI1_CLK_EQU_SYSCLK: u32 = 1 << 31;
+
     pub const fn new() -> Self {
-        CpuSaveState {}
+        CpuSaveState {
+            saved_peri_clk_ctrl00: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+        }
     }
 
     pub fn set_max_cpu_clock(&mut self) {}
 
-    pub fn configure_flash(&mut self) {}
+    /// Runs SPI1 at the 40 MHz XTAL_CLK instead of the reset default XTAL_CLK / 4.
+    pub fn configure_flash(&mut self) {
+        unsafe {
+            self.saved_peri_clk_ctrl00 = Self::PERI_CLK_CTRL00.read_volatile();
+            self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+            self.flash_clock_modified = true;
 
-    pub fn restore(&self) {}
+            Self::PERI_CLK_CTRL00
+                .write_volatile(self.saved_peri_clk_ctrl00 & !Self::FLASH_CLK_SRC_MASK);
+            Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLK_EQU_SYSCLK);
+        }
+    }
+
+    pub fn restore(&self) {
+        if !self.flash_clock_modified {
+            return;
+        }
+        unsafe {
+            Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock);
+            Self::PERI_CLK_CTRL00.write_volatile(self.saved_peri_clk_ctrl00);
+        }
+    }
 }
 
 pub fn major_chip_version() -> u8 {
