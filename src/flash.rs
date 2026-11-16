@@ -218,6 +218,67 @@ pub fn wait_for_idle() -> i32 {
     0
 }
 
+#[cfg(any(feature = "esp32c5", feature = "esp32c61", feature = "esp32p4"))]
+pub mod rom_write_chunk {
+    use crate::chip::is_data_ram;
+
+    extern "C" {
+        static rom_spiflash_legacy_funcs: u32;
+    }
+
+    /// Makes the ROM write 64 bytes per page-program command, the size of the SPI1 data buffer,
+    /// instead of 32. Each command waits for the flash to finish programming, so fewer commands
+    /// per page make writes faster.
+    pub struct RomWriteChunk {
+        write_sub_len: *mut u32,
+        saved: u32,
+    }
+
+    impl RomWriteChunk {
+        pub const fn new() -> Self {
+            Self {
+                write_sub_len: core::ptr::null_mut(),
+                saved: 0,
+            }
+        }
+
+        /// Uses the `rom_spiflash_legacy_funcs` address from the linker script.
+        pub fn enlarge(&mut self) {
+            self.enlarge_at(&raw const rom_spiflash_legacy_funcs as u32);
+        }
+
+        /// `legacy_funcs` is the address of the ROM's `rom_spiflash_legacy_funcs` pointer.
+        pub fn enlarge_at(&mut self, legacy_funcs: u32) {
+            // The address lengths come first in the struct, all 24 bits for the legacy commands.
+            const ADDR_BIT_LENS: u32 = 0x1818_1818;
+            const WRITE_SUB_LEN_OFFSET: u32 = 8;
+
+            let funcs = unsafe { (legacy_funcs as *const u32).read_volatile() };
+            if funcs & 3 != 0 || !is_data_ram(funcs) {
+                return;
+            }
+            let write_sub_len = (funcs + WRITE_SUB_LEN_OFFSET) as *mut u32;
+            unsafe {
+                let saved = write_sub_len.read_volatile();
+                if (funcs as *const u32).read_volatile() != ADDR_BIT_LENS
+                    || !matches!(saved, 16 | 32)
+                {
+                    return;
+                }
+                self.write_sub_len = write_sub_len;
+                self.saved = saved;
+                write_sub_len.write_volatile(64);
+            }
+        }
+
+        pub fn restore(&self) {
+            if !self.write_sub_len.is_null() {
+                unsafe { self.write_sub_len.write_volatile(self.saved) };
+            }
+        }
+    }
+}
+
 fn read_spi_reg(reg: u32) -> u32 {
     unsafe { (reg as *mut u32).read_volatile() }
 }

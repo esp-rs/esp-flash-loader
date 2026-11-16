@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -55,6 +55,7 @@ pub struct CpuSaveState {
     saved_mspi_clk_conf: u32,
     saved_spi1_clock: u32,
     flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
 }
 
 impl CpuSaveState {
@@ -86,6 +87,7 @@ impl CpuSaveState {
             saved_mspi_clk_conf: 0,
             saved_spi1_clock: 0,
             flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
         }
     }
 
@@ -99,9 +101,12 @@ impl CpuSaveState {
         }
     }
 
-    /// Runs SPI1 at 40 MHz instead of the reset default XTAL_CLK / 4. The XTAL is 48 MHz, which
-    /// is too fast for plain reads, so the clock comes from the PLL.
+    /// Makes the ROM write 64 bytes per command, and runs SPI1 at 40 MHz instead of the reset
+    /// default XTAL_CLK / 4. The XTAL is 48 MHz, which is too fast for plain reads, so the clock
+    /// comes from the PLL.
     pub fn configure_flash(&mut self) {
+        self.write_chunk.enlarge();
+
         if Self::pll_cpu_mhz().is_none() {
             return;
         }
@@ -118,6 +123,7 @@ impl CpuSaveState {
     }
 
     fn restore_flash(&self) {
+        self.write_chunk.restore();
         if !self.flash_clock_modified {
             return;
         }
@@ -163,6 +169,10 @@ impl CpuSaveState {
         Self::set_cpu_div(self.saved_cpu_div);
         unsafe { ets_update_cpu_frequency(self.saved_ticks_per_us) };
     }
+}
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x4080_0000..0x4086_0000).contains(&address)
 }
 
 pub fn major_chip_version() -> u8 {
