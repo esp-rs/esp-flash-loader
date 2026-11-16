@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -46,6 +46,9 @@ pub const MEM_SPI: MemSpi = MemSpi {
 pub struct CpuSaveState {
     saved_cpu_per_conf_reg: u32,
     saved_sysclk_conf_reg: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
 }
 
 impl CpuSaveState {
@@ -57,10 +60,40 @@ impl CpuSaveState {
     const SYSTEM_SOC_CLK_SEL_M: u32 = 3 << 10;
     const SYSTEM_SOC_CLK_MAX: u32 = 1 << 10;
 
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+    // 60 MHz / 2
+    const SPI1_CLOCK_DIV2: u32 = (1 << 16) | 1;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved_cpu_per_conf_reg: 0,
             saved_sysclk_conf_reg: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
+        }
+    }
+
+    /// Runs SPI1 at 30 MHz instead of the reset default of 60 MHz / 4, and makes the ROM write
+    /// 64 bytes per command.
+    pub fn configure_flash(&mut self) {
+        let soc_clk_sel =
+            unsafe { Self::SYSTEM_SYSCLK_CONF_REG.read_volatile() } & Self::SYSTEM_SOC_CLK_SEL_M;
+        // The MSPI clock is 60 MHz only with the CPU on the PLL.
+        if soc_clk_sel == Self::SYSTEM_SOC_CLK_MAX {
+            unsafe {
+                self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+                self.flash_clock_modified = true;
+                Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLOCK_DIV2);
+            }
+        }
+        self.write_chunk.enlarge();
+    }
+
+    fn restore_flash(&self) {
+        self.write_chunk.restore();
+        if self.flash_clock_modified {
+            unsafe { Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock) };
         }
     }
 
@@ -80,12 +113,15 @@ impl CpuSaveState {
         }
     }
 
-    pub fn configure_flash(&mut self) {}
-
     pub fn restore(&self) {
+        self.restore_flash();
         unsafe { Self::SYSTEM_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
         unsafe { Self::SYSTEM_CPU_PER_CONF_REG.write_volatile(self.saved_cpu_per_conf_reg) };
     }
+}
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x3FCA_0000..0x3FCE_0000).contains(&address)
 }
 
 pub fn major_chip_version() -> u8 {

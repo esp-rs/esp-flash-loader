@@ -219,6 +219,7 @@ pub fn wait_for_idle() -> i32 {
 }
 
 #[cfg(any(
+    feature = "esp32c2",
     feature = "esp32c5",
     feature = "esp32c6",
     feature = "esp32c61",
