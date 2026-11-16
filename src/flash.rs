@@ -225,7 +225,8 @@ pub fn wait_for_idle() -> i32 {
     feature = "esp32h2",
     feature = "esp32h4",
     feature = "esp32p4",
-    feature = "esp32s3"
+    feature = "esp32s3",
+    feature = "esp32s31"
 ))]
 pub mod rom_write_chunk {
     use crate::chip::is_data_ram;

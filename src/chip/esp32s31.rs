@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -50,6 +50,9 @@ pub struct CpuSaveState {
     saved: [u32; 5],
     saved_ticks_per_us: u32,
     modified: bool,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
 }
 
 impl CpuSaveState {
@@ -76,14 +79,43 @@ impl CpuSaveState {
     const SYS_DIV: u32 = 2;
     const APB_DIV: u32 = 1;
 
+    const FLASH_CTRL0: *const u32 = (Self::HP_SYS_CLKRST + 0x64) as *const u32;
+    // FLASH_CLK_SRC_SEL (0 is XTAL) and FLASH_CORE_CLK_DIV_NUM
+    const FLASH_CLK_SRC_DIV_M: u32 = (3 << 5) | (0xFF << 9);
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+    const SPI1_CLK_EQU_SYSCLK: u32 = 1 << 31;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved: [0; 5],
             saved_ticks_per_us: 0,
             modified: false,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
         }
     }
 
+    /// Runs SPI1 at the 40 MHz XTAL clock instead of the reset default XTAL / 4, and makes the
+    /// ROM write 64 bytes per command.
+    pub fn configure_flash(&mut self) {
+        // Only when the flash core clock is the undivided XTAL.
+        if unsafe { Self::FLASH_CTRL0.read_volatile() } & Self::FLASH_CLK_SRC_DIV_M == 0 {
+            unsafe {
+                self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+                self.flash_clock_modified = true;
+                Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLK_EQU_SYSCLK);
+            }
+        }
+        self.write_chunk.enlarge();
+    }
+
+    fn restore_flash(&self) {
+        self.write_chunk.restore();
+        if self.flash_clock_modified {
+            unsafe { Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock) };
+        }
+    }
     fn regs() -> [*mut u32; 5] {
         [
             Self::CPU_FREQ_CTRL0,
@@ -137,9 +169,8 @@ impl CpuSaveState {
         unsafe { ets_update_cpu_frequency(Self::CPU_MHZ) };
     }
 
-    pub fn configure_flash(&mut self) {}
-
     pub fn restore(&self) {
+        self.restore_flash();
         if !self.modified {
             return;
         }
@@ -149,6 +180,10 @@ impl CpuSaveState {
         Self::update_bus_clocks();
         unsafe { ets_update_cpu_frequency(self.saved_ticks_per_us) };
     }
+}
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x2F00_0000..0x2F08_0000).contains(&address)
 }
 
 // EFUSE_BLK1, bit 118, 2 bits (WAFER_VERSION_MAJOR)
