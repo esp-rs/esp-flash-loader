@@ -40,6 +40,8 @@ impl CpuSaveState {
 
     pub fn set_max_cpu_clock(&mut self) {}
 
+    pub fn configure_flash(&mut self) {}
+
     pub fn restore(&self) {}
 }
 

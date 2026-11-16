@@ -137,6 +137,8 @@ impl CpuSaveState {
         unsafe { ets_update_cpu_frequency(Self::CPU_MHZ) };
     }
 
+    pub fn configure_flash(&mut self) {}
+
     pub fn restore(&self) {
         if !self.modified {
             return;

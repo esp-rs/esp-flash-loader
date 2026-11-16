@@ -52,13 +52,18 @@ pub struct CpuSaveState {
     saved_cpu_div: u32,
     saved_ticks_per_us: u32,
     modified: bool,
+    saved_mspi_clk_conf: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
 }
 
 impl CpuSaveState {
     const PCR: u32 = 0x6009_6000;
+    const MSPI_CLK_CONF: *mut u32 = (Self::PCR + 0x28) as *mut u32;
     const SYSCLK_CONF: *const u32 = (Self::PCR + 0xE8) as *const u32;
     const CPU_FREQ_CONF: *mut u32 = (Self::PCR + 0xF0) as *mut u32;
     const BUS_CLK_UPDATE: *mut u32 = (Self::PCR + 0x120) as *mut u32;
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
 
     const SOC_CLK_SEL_SHIFT: u32 = 16;
     const SOC_CLK_SEL_PLL_F160M: u32 = 2;
@@ -66,11 +71,40 @@ impl CpuSaveState {
     const BUS_CLOCK_UPDATE: u32 = 1 << 0;
     const CPU_MHZ: u32 = 160;
 
+    // MSPI_FAST_DIV_NUM and MSPI_FUNC_CLK_SEL. Zero selects XTAL_CLK, undivided.
+    const MSPI_CLK_SRC_MASK: u32 = 0x3FF;
+    const SPI1_CLK_EQU_SYSCLK: u32 = 1 << 31;
+
     pub const fn new() -> Self {
         CpuSaveState {
             saved_cpu_div: 0,
             saved_ticks_per_us: 0,
             modified: false,
+            saved_mspi_clk_conf: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+        }
+    }
+
+    /// Runs SPI1 at the 40 MHz XTAL_CLK instead of the reset default XTAL_CLK / 4.
+    pub fn configure_flash(&mut self) {
+        unsafe {
+            self.saved_mspi_clk_conf = Self::MSPI_CLK_CONF.read_volatile();
+            self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+            self.flash_clock_modified = true;
+
+            Self::MSPI_CLK_CONF.write_volatile(self.saved_mspi_clk_conf & !Self::MSPI_CLK_SRC_MASK);
+            Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLK_EQU_SYSCLK);
+        }
+    }
+
+    fn restore_flash(&self) {
+        if !self.flash_clock_modified {
+            return;
+        }
+        unsafe {
+            Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock);
+            Self::MSPI_CLK_CONF.write_volatile(self.saved_mspi_clk_conf);
         }
     }
 
@@ -103,6 +137,8 @@ impl CpuSaveState {
     }
 
     pub fn restore(&self) {
+        self.restore_flash();
+
         if !self.modified {
             return;
         }

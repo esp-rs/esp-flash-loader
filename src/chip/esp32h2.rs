@@ -70,6 +70,8 @@ impl CpuSaveState {
         };
     }
 
+    pub fn configure_flash(&mut self) {}
+
     pub fn restore(&self) {
         unsafe { Self::PCR_SYSCLK_CONF_REG.write_volatile(self.saved_sysclk_conf_reg) };
     }
