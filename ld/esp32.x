@@ -1,7 +1,8 @@
 MEMORY {
     /* SRAM1 */
     IRAM : ORIGIN = 0x400A0000, LENGTH = 0x8000
-    RWDATA : ORIGIN = 0x3FFE0000, LENGTH = 0x18000
+    /* SRAM2. The ROM keeps APP CPU data and stack in 0x3FFE3F20..0x3FFE7E30 of SRAM1. */
+    RWDATA : ORIGIN = 0x3FFB0000, LENGTH = 0x18000
 }
 
 INCLUDE "loader.x"

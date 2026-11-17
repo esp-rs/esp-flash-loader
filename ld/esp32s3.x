@@ -8,6 +8,7 @@ MEMORY {
 INCLUDE "loader.x"
 
 PROVIDE( ets_delay_us = 0x40000600 );
+PROVIDE( ets_set_appcpu_boot_addr = 0x40000720 );
 PROVIDE( ets_update_cpu_frequency = 0x40001a4c );
 PROVIDE( rom_i2c_writeReg_Mask = 0x40005d6c );
 PROVIDE ( esp_rom_spiflash_attach = spi_flash_attach );
