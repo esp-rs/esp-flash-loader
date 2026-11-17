@@ -1,6 +1,6 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
-    flash::MemSpi,
+    flash::{rom_write_chunk::RomWriteChunk, MemSpi},
     rom::{RomDataTable, RomDataTables},
 };
 
@@ -77,16 +77,68 @@ pub const MEM_SPI: MemSpi = MemSpi {
     data_buf_0: 0x58,
 };
 
-pub struct CpuSaveState {}
+pub struct CpuSaveState {
+    saved_peri_clk_ctrl00: u32,
+    saved_spi1_clock: u32,
+    flash_clock_modified: bool,
+    write_chunk: RomWriteChunk,
+}
 
 impl CpuSaveState {
+    const PERI_CLK_CTRL00: *mut u32 = 0x500E_6030 as *mut u32;
+    const SPI1_CLOCK: *mut u32 = (MEM_SPI.base + 0x14) as *mut u32;
+
+    // FLASH_CLK_SRC_SEL and FLASH_CORE_CLK_DIV_NUM. Zero selects XTAL_CLK, undivided.
+    const FLASH_CLK_SRC_MASK: u32 = 0xFF3;
+    const SPI1_CLK_EQU_SYSCLK: u32 = 1 << 31;
+
     pub const fn new() -> Self {
-        CpuSaveState {}
+        CpuSaveState {
+            saved_peri_clk_ctrl00: 0,
+            saved_spi1_clock: 0,
+            flash_clock_modified: false,
+            write_chunk: RomWriteChunk::new(),
+        }
     }
 
     pub fn set_max_cpu_clock(&mut self) {}
 
-    pub fn restore(&self) {}
+    /// Runs SPI1 at the 40 MHz XTAL_CLK instead of the reset default XTAL_CLK / 4, and makes
+    /// the ROM write 64 bytes per command.
+    pub fn configure_flash(&mut self) {
+        unsafe {
+            self.saved_peri_clk_ctrl00 = Self::PERI_CLK_CTRL00.read_volatile();
+            self.saved_spi1_clock = Self::SPI1_CLOCK.read_volatile();
+            self.flash_clock_modified = true;
+
+            Self::PERI_CLK_CTRL00
+                .write_volatile(self.saved_peri_clk_ctrl00 & !Self::FLASH_CLK_SRC_MASK);
+            Self::SPI1_CLOCK.write_volatile(Self::SPI1_CLK_EQU_SYSCLK);
+        }
+        if major_chip_version() >= 3 {
+            self.write_chunk.enlarge_at(V3_ROM_SPIFLASH_LEGACY_FUNCS);
+        } else {
+            self.write_chunk.enlarge();
+        }
+    }
+
+    pub fn restore(&self) {
+        self.write_chunk.restore();
+        if !self.flash_clock_modified {
+            return;
+        }
+        unsafe {
+            Self::SPI1_CLOCK.write_volatile(self.saved_spi1_clock);
+            Self::PERI_CLK_CTRL00.write_volatile(self.saved_peri_clk_ctrl00);
+        }
+    }
+}
+
+// `rom_spiflash_legacy_funcs` in the v3 ROM. The linker script has the address in older ROMs.
+const V3_ROM_SPIFLASH_LEGACY_FUNCS: u32 = 0x4FFB_FFEC;
+
+pub fn is_data_ram(address: u32) -> bool {
+    (0x4FF0_0000..0x4FFC_0000).contains(&address)
 }
 
 pub fn major_chip_version() -> u8 {

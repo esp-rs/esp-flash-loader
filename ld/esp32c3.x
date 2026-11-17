@@ -79,6 +79,7 @@ PROVIDE( Wait_SPI_Idle = 0x4000021c );
 PROVIDE( spi_dummy_len_fix = 0x40000220 );
 PROVIDE( Disable_QMode = 0x40000224 );
 PROVIDE( Enable_QMode = 0x40000228 );
+PROVIDE( rom_spiflash_legacy_funcs = 0x3fcdfff4 );
 
 
 PROVIDE( ets_efuse_get_spiconfig = 0x4000071c );

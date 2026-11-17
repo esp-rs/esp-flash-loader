@@ -134,7 +134,11 @@ pub unsafe extern "C" fn Init_impl(_adr: u32, _clk: u32, _fnc: u32) -> i32 {
     let state = init_state();
     state.saved_cpu_state.set_max_cpu_clock();
 
-    flash::attach()
+    let result = flash::attach();
+
+    // Attaching the flash resets the SPI1 clock.
+    state.saved_cpu_state.configure_flash();
+    result
 }
 
 /// Erase the sector at the given address in flash
