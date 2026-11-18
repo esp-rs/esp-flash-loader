@@ -16,6 +16,7 @@ pub const ROM_DATA_TABLES: RomDataTables = &[
         bss_end: 0x40047BAC,
     },
     RomDataTable {
+        // ECO2
         min_revision: 100,
         data_start: 0x4003B154,
         data_end: 0x4003B340,
@@ -23,11 +24,20 @@ pub const ROM_DATA_TABLES: RomDataTables = &[
         bss_end: 0x4003B480,
     },
     RomDataTable {
+        // ECO3
         min_revision: 102,
         data_start: 0x4003D770,
         data_end: 0x4003D968,
         bss_start: 0x4003D968,
         bss_end: 0x4003DAB0,
+    },
+    RomDataTable {
+        // ECO5
+        min_revision: 104,
+        data_start: 0x4003DDF8,
+        data_end: 0x4003DFF0,
+        bss_start: 0x4003DFF0,
+        bss_end: 0x4003E138,
     },
 ];
 

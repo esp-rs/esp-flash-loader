@@ -16,11 +16,20 @@ pub const ROM_DATA_TABLES: RomDataTables = &[
         bss_end: 0x40037310,
     },
     RomDataTable {
+        // ECO3
         min_revision: 100,
         data_start: 0x40038A4C,
         data_end: 0x40038C38,
         bss_start: 0x40038C38,
         bss_end: 0x40038D78,
+    },
+    RomDataTable {
+        // ECO5
+        min_revision: 102,
+        data_start: 0x400396B0,
+        data_end: 0x400398A8,
+        bss_start: 0x400398A8,
+        bss_end: 0x400399F0,
     },
 ];
 

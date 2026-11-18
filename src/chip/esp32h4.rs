@@ -1,14 +1,29 @@
 use crate::{
     efuse::{read_field, EfuseInfo},
     flash::{rom_write_chunk::RomWriteChunk, MemSpi},
-    rom::RomDataTables,
+    rom::{RomDataTable, RomDataTables},
 };
 
 // Max of 32MB
 pub const MAX_FLASH_SIZE: u32 = 0x2000000;
 
-// TODO: fill from H4 ROM ELF when available.
-pub const ROM_DATA_TABLES: RomDataTables = &[];
+pub const ROM_DATA_TABLES: RomDataTables = &[
+    RomDataTable {
+        min_revision: 0,
+        data_start: 0x4001BD4C,
+        data_end: 0x4001BEFC,
+        bss_start: 0x4001BEFC,
+        bss_end: 0x4001C014,
+    },
+    RomDataTable {
+        // ECO2
+        min_revision: 2,
+        data_start: 0x4001678C,
+        data_end: 0x4001693C,
+        bss_start: 0x4001693C,
+        bss_end: 0x40016A54,
+    },
+];
 
 pub const ROM_TABLE_ENTRY_SIZE: u32 = 12;
 

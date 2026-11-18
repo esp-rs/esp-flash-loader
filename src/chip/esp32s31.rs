@@ -7,18 +7,13 @@ use crate::{
 // Max of 256MB
 pub const MAX_FLASH_SIZE: u32 = 0x10000000;
 
-// No ROM data init tables needed; ROM boot already initializes its own data.
-pub const ROM_DATA_TABLES: RomDataTables = &[];
-
-// Suppress dead-code warning: ROM_DATA_TABLES is an empty slice but the type
-// still requires the element type to be in scope.
-const _: RomDataTable = RomDataTable {
+pub const ROM_DATA_TABLES: RomDataTables = &[RomDataTable {
     min_revision: 0,
-    data_start: 0,
-    data_end: 0,
-    bss_start: 0,
-    bss_end: 0,
-};
+    data_start: 0x2F83F30C,
+    data_end: 0x2F83F570,
+    bss_start: 0x2F83F570,
+    bss_end: 0x2F83F700,
+}];
 
 pub const ROM_TABLE_ENTRY_SIZE: u32 = 12;
 
