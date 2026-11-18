@@ -22,6 +22,13 @@ pub const ROM_DATA_TABLES: RomDataTables = &[
         bss_start: 0x4003B340,
         bss_end: 0x4003B480,
     },
+    RomDataTable {
+        min_revision: 102,
+        data_start: 0x4003D770,
+        data_end: 0x4003D968,
+        bss_start: 0x4003D968,
+        bss_end: 0x4003DAB0,
+    },
 ];
 
 pub const ROM_TABLE_ENTRY_SIZE: u32 = 12;
