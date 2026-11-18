@@ -16,7 +16,8 @@ pub const ROM_DATA_TABLES: RomDataTables = &[
         bss_end: 0x400825E4,
     },
     RomDataTable {
-        min_revision: 400,
+        // ECO4
+        min_revision: 200,
         data_start: 0x40081EEC,
         data_end: 0x4008219C,
         bss_start: 0x400821AC,

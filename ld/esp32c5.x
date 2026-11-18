@@ -1,7 +1,7 @@
 MEMORY {
     /* Start 64k into the RAM region */
     IRAM : ORIGIN = 0x40810000, LENGTH = 0x10000
-    RWDATA : ORIGIN = 0x40840000, LENGTH = 0x20000
+    RWDATA : ORIGIN = 0x40840000, LENGTH = 0x18000
 }
 
 INCLUDE "loader.x"

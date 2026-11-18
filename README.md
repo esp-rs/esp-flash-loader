@@ -58,7 +58,7 @@ $ target-gen elf target/riscv32imc-unknown-none-elf/release/esp-flashloader outp
     ```
 6. [Define `spiconfig` for your the target in `flash.rs`](https://github.com/search?q=repo%3Aespressif%2Fesp-idf+ets_efuse_get_spiconfig+path%3A*c3*&type=code)
 7. Add your device to the table in `main.rs` and calculate addresses.
-8. Define your target's device specific data in `chip/<chip_name>.rs`, and add the file to the list of paths in `main.rs`. Take an existing chip as a reference. Obtain the ROM memory init addresses from the ROM code elf files.
+8. Define your target's device specific data in `chip/<chip_name>.rs`, and add the file to the list of paths in `main.rs`. Take an existing chip as a reference. Fill `ROM_DATA_TABLES` from the ROM ELFs with `cargo +nightly -Zscript tools/rom-tables.rs <esp-rom-elfs checkout>`. Run it from outside this repo, so the `build-std` setting in `.cargo/config.toml` does not apply.
 9. (Optional) Implement code necessary to set maximum CPU speed.
 10. Follow the instructions above for building
   - It may fail with: `rust-lld: error: undefined symbol: <symbol>`
